@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f6f7f9;
+  --foreground: #18181b;
+}
+
+@layer base {
+  html, body { height: 100%; }
+  /* 预留滚动条空间：滚动条出现/消失时内容不再左右跳动 */
+  html { scrollbar-gutter: stable; }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== 光标语义（Tailwind v4 默认不再给按钮 pointer，这里统一补上）===== */
+  /* 可交互元素 → 手势 */
+  a, summary, select, [role="button"],
+  button:not(:disabled),
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    cursor: pointer;
+  }
+  /* 禁用元素 → 禁用标识 */
+  button:disabled, input:disabled, textarea:disabled, select:disabled,
+  [disabled], [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  /* 内容容器：全透明——整屏主题背景作为一个整体呈现，不再分区 */
+  .card {
+    @apply bg-transparent rounded-2xl transition-all duration-200;
+  }
+  .card-hover:hover {
+    @apply -translate-y-0.5 bg-indigo-500/[0.06];
+  }
+  /* 主按钮：indigo→violet 渐变；禁用态显示禁用光标且不再穿透点击 */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-medium text-white shadow-md shadow-indigo-600/25 transition-all duration-150 enabled:hover:from-indigo-500 enabled:hover:to-violet-500 enabled:hover:shadow-lg enabled:hover:shadow-indigo-500/30 enabled:active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  /* 次级按钮：半透明玻璃 */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-white/70 border border-black/5 px-4 py-2 text-sm font-medium text-zinc-700 backdrop-blur-sm transition-all duration-150 enabled:hover:bg-white/95 enabled:active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  /* 危险按钮：红色渐变，删除/清空等破坏性操作 */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-4 py-2 text-sm font-medium text-white shadow-md shadow-red-500/25 transition-all duration-150 enabled:hover:from-red-400 enabled:hover:to-rose-500 enabled:active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  /* 输入框：柔和边框 + 悬停加深 + 聚焦光晕 */
+  .input {
+    @apply w-full rounded-xl border border-zinc-200 bg-white/85 backdrop-blur-sm px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition-all duration-150 placeholder:text-zinc-400/80 hover:border-zinc-300 focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10;
+  }
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(120,120,135,0.35); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(120,120,135,0.55); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* —— AI 回复打字机光标 —— */
+.typing-cursor { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -0.15em; background: currentColor; border-radius: 1px; animation: typing-blink 1s steps(1) infinite; }
+@keyframes typing-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+/* —— 深色主题适配层：统一背景下保持文字/控件显眼（根容器挂 .theme-dark） —— */
+.theme-dark { color-scheme: dark; }
+.theme-dark .text-zinc-900 { color: #fafafa !important; }
+.theme-dark .text-zinc-800 { color: #f4f4f5 !important; }
+.theme-dark .text-zinc-700 { color: #e4e4e7 !important; }
+.theme-dark .text-zinc-600 { color: #d4d4d8 !important; }
+.theme-dark .text-zinc-500 { color: #b6b6c0 !important; }
+.theme-dark .text-zinc-400 { color: #a1a1aa !important; }
+.theme-dark .bg-white\/55, .theme-dark .bg-white\/60, .theme-dark .bg-white\/65,
+.theme-dark .bg-white\/70, .theme-dark .bg-white\/75, .theme-dark .bg-white\/80,
+.theme-dark .bg-white\/90, .theme-dark .bg-white\/95 { background-color: rgba(255, 255, 255, 0.08) !important; }
+.theme-dark .border-white\/60, .theme-dark .border-white\/70 { border-color: rgba(255, 255, 255, 0.14) !important; }
+.theme-dark .bg-black\/\[0\.04\] { background-color: rgba(255, 255, 255, 0.10) !important; }
+.theme-dark .hover\:bg-black\/\[0\.08\]:hover { background-color: rgba(255, 255, 255, 0.18) !important; }
+.theme-dark .border-black\/5 { border-color: rgba(255, 255, 255, 0.12) !important; }
+.theme-dark .input { background-color: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.20); color: #f4f4f5; }
+.theme-dark .input:focus { background-color: rgba(255, 255, 255, 0.14); }
+.theme-dark .input::placeholder { color: #9d9da8; }
+.theme-dark .border-zinc-300\/70 { border-color: rgba(255, 255, 255, 0.22) !important; }
+.theme-dark .btn-ghost { background-color: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.14); color: #e4e4e7; }
+.theme-dark .btn-ghost:enabled:hover { background-color: rgba(255, 255, 255, 0.20); }
+.theme-dark .bg-amber-50\/85 { background-color: rgba(245, 158, 11, 0.14) !important; }
+.theme-dark .border-amber-200\/90 { border-color: rgba(245, 158, 11, 0.35) !important; }
+.theme-dark .text-amber-700 { color: #fcd34d !important; }
+.theme-dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.18) !important; }
+.theme-dark .text-indigo-700, .theme-dark .text-indigo-600 { color: #a5b4fc !important; }
