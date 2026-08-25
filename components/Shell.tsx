@@ -27,11 +27,15 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  // 首屏：匿名背景配置 + 静默登录态（并行，互不阻塞）
+  // 首屏：匿名背景配置（只拉一次）
   useEffect(() => {
     apiJson("/api/c/config/background").then((j) => setBg(j.background || null)).catch(() => { /* 失败用默认色 */ })
-    fetchMe().then((u) => { setUser(u); setMeChecked(true) })
   }, [])
+
+  // 登录态：路由变化时重查（登录/退出后软跳转也能即时刷新顶栏用户态）
+  useEffect(() => {
+    fetchMe().then((u) => { setUser(u); setMeChecked(true) })
+  }, [pathname])
 
   // 下拉菜单点外关闭
   useEffect(() => {
