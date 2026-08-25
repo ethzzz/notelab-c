@@ -8,13 +8,22 @@ import { apiJson, api, clearRememberedPath } from "@/lib/api"
 import { resolveBgStyle, themeById } from "@/lib/themes"
 import { fetchMe, type CUser } from "@/lib/auth"
 import Modal from "@/components/ui/modal"
-import { LogOut, User as UserIcon, House, BookOpen, TowerControl, Ghost } from "lucide-react"
+import HoverMenu, { type HoverMenuItem } from "@/components/hover-menu"
+import { LogOut, User as UserIcon, House, BookOpen, TowerControl, Ghost, Gamepad2 } from "lucide-react"
 
+// 移动端底部 Tab（桌面导航已改为 首页 + 游戏中心悬浮菜单）
 const NAV = [
   { href: "/", name: "首页", icon: House },
   { href: "/trpg", name: "TRPG", icon: BookOpen },
   { href: "/spire", name: "爬塔", icon: TowerControl },
   { href: "/vs", name: "幸存者", icon: Ghost },
+]
+
+// 游戏中心主 tab 的子菜单（悬停展开）
+const GAME_MENU: HoverMenuItem[] = [
+  { href: "/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
+  { href: "/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
+  { href: "/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -71,19 +80,15 @@ export default function Shell({ children }: { children: ReactNode }) {
           <span className={`hidden lg:inline text-[10px] rounded-full px-2.5 py-1 whitespace-nowrap border ${dark ? "text-zinc-300 bg-white/10 border-white/10" : "text-zinc-500 bg-black/[0.04] border-black/5"}`}>游戏中心</span>
         </Link>
 
-        {/* 桌面端导航链接 */}
+        {/* 桌面端导航：首页 + 游戏中心（悬停展开子菜单） */}
         <nav className="hidden md:flex items-center gap-1 ml-4">
-          {NAV.map((n) => {
-            const active = isActive(n.href)
-            return (
-              <Link key={n.href} href={n.href}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${active
-                  ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/25"
-                  : dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
-                <n.icon size={15} /> {n.name}
-              </Link>
-            )
-          })}
+          <Link href="/"
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${pathname === "/"
+              ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/25"
+              : dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
+            <House size={15} /> 首页
+          </Link>
+          <HoverMenu label="游戏中心" icon={<Gamepad2 size={15} />} items={GAME_MENU} pathname={pathname} dark={dark} />
         </nav>
 
         {/* 右侧：登录按钮 / 用户下拉 */}
