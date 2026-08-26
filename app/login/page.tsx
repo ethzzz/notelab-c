@@ -1,6 +1,7 @@
 "use client"
 // C 端登录：POST /api/c/auth/login；成功后回跳被拦截前记录的页面（无记录则回首页）
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { apiJson, postJson, takeRedirectPath } from "@/lib/api"
 import { toast } from "sonner"
@@ -80,7 +81,9 @@ export default function LoginPage() {
           {loading && <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
           {loading ? "登录中…" : "登 录"}
         </button>
-        <p className="text-xs text-zinc-400 text-center">账号由管理员统一创建，如需开通请联系管理员</p>
+        <p className="text-xs text-zinc-400 text-center">
+          有邀请码？<Link href="/register" className="text-indigo-500 hover:text-indigo-600 font-medium">注册新账号</Link>
+        </p>
       </div>
     </div>
   )
