@@ -5,11 +5,12 @@ import {
   newRun, playCard, endTurn, useSkill, resolveEcho, resolveScry, echoCopyCard,
   chooseReward, buyCard, removeCard, leaveShop, buyPotion,
   enterNode, restHeal, restUpgrade, usePotion, leaveEvent,
-  mapRows, reachableIds, NODE_META, POTION_DEFS, MAX_POTIONS,
+  POTION_DEFS, MAX_POTIONS,
   enemyAtkPreview, REMOVE_COST, MAX_FLOOR, CHARACTERS, characterOf, applyCustomContent,
   type RunState, type Move, type FxEvent, type FxTarget, type PotionKind,
 } from "@/lib/spire-engine"
 import { SpireCardView as CardView } from "@/components/SpireCardView"
+import SpireMap from "@/components/SpireMap"
 import { loadSpireContent } from "@/lib/spire-content"
 
 function HpBar({ hp, maxHp, color = "bg-gradient-to-r from-emerald-500 to-lime-400" }: { hp: number; maxHp: number; color?: string }) {
@@ -249,8 +250,6 @@ export default function SpirePage() {
 
   // ---------------- 路线图：选择下一节点前进 ----------------
   if (s.phase === "map") {
-    const rows = mapRows(s)
-    const reach = new Set(reachableIds(s))
     return (
       <div className="relative flex h-[calc(100vh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
         {/* 顶栏 */}
@@ -266,35 +265,10 @@ export default function SpirePage() {
             <button onClick={backToMenu} className="rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-400 hover:bg-white/10">🏳️ 放弃</button>
           </div>
         </div>
-        <div className="text-center text-xs text-zinc-400">{s.pos ? "选择一个亮起的节点继续前进，所有路线最终汇聚 BOSS" : "从起点选择一条路线出发"}</div>
-        {/* 地图：首行起点在上，末行 BOSS 在下 */}
-        <div className="flex flex-1 flex-col justify-evenly overflow-y-auto px-4 py-3">
-          {rows.map((row, r) => (
-            <div key={r} className="flex items-center justify-center gap-5">
-              {row.map((n) => {
-                const meta = NODE_META[n.type]
-                const isCur = s.pos === n.id
-                const done = s.visited.includes(n.id) && !isCur
-                const can = reach.has(n.id)
-                const isBoss = n.type === "boss"
-                return (
-                  <button key={n.id} disabled={!can}
-                    onClick={() => { enterNode(sp.current!, n.id); bump() }}
-                    title={meta.name}
-                    className={`flex flex-col items-center rounded-xl border transition-all ${isBoss ? "px-6 py-2.5" : "px-3 py-1.5"} ${
-                      isCur ? "border-amber-400 bg-amber-500/20 shadow-[0_0_14px_rgba(251,191,36,.35)]"
-                      : can ? "border-emerald-400/70 bg-emerald-500/10 hover:bg-emerald-500/25 hover:shadow-[0_0_12px_rgba(52,211,153,.35)]"
-                      : done ? "border-white/10 bg-white/5 opacity-35"
-                      : "border-white/15 bg-white/5 opacity-70"}`}>
-                    <span className={isBoss ? "text-4xl" : "text-2xl"}>{meta.icon}</span>
-                    <span className={`mt-0.5 ${isBoss ? "text-xs font-bold text-rose-300" : "text-[10px] text-zinc-300"}`}>
-                      {meta.name}{done ? " ✓" : ""}{isCur ? " 📍" : ""}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+        <div className="text-center text-xs text-zinc-400">{s.pos ? "沿亮起的路线前进，所有路径最终汇聚于 BOSS" : "从起点选择一条路线出发"}</div>
+        {/* 地图：网状连线图，每一节点连向上一/下一节点；block 流保证图例在地图下方，overflow-auto 兼顾小屏纵/横滚动 */}
+        <div className="flex-1 overflow-auto px-2 py-3">
+          <SpireMap s={s} onEnter={(id) => { enterNode(sp.current!, id); bump() }} />
         </div>
         {/* 弹层：查看卡组 */}
         {showDeck && (
