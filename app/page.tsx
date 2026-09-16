@@ -16,6 +16,10 @@ const GAMES = [
     href: "/vs", emoji: "🧛", name: "吸血鬼幸存者", tag: "自动战斗 · 生存",
     desc: "吸血鬼潮水般涌来，走位、升级、挑选武器强化，在包围中坚持到最后一刻。",
   },
+  {
+    href: "/thunder", emoji: "✈️", name: "雷霆战机", tag: "纵版弹幕 · 闯关",
+    desc: "驾驶战机突入敌阵，弹幕中穿梭躲闪，击败层层首领，守住最后的防线。",
+  },
 ]
 
 export default function HomePage() {
@@ -26,7 +30,7 @@ export default function HomePage() {
         <span className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 text-4xl shadow-xl shadow-indigo-600/30">🧪</span>
         <h1 className="text-3xl font-black tracking-wide text-zinc-800 md:text-5xl">NoteLab 游戏中心</h1>
         <p className="max-w-xl text-sm leading-relaxed text-zinc-500 md:text-base">
-          文字冒险、爬塔与幸存者的世界。登录后即可开始游玩，进度自动保存，随时随地继续。
+          文字冒险、爬塔、幸存者与雷霆战机的世界。登录后即可开始游玩，进度自动保存，随时随地继续。
         </p>
         <div className="mt-2 flex items-center gap-3">
           <Link href="/trpg" className="btn-primary">开始冒险 <ArrowRight size={15} /></Link>
@@ -34,8 +38,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 游戏卡片 */}
-      <section className="grid grid-cols-1 gap-4 pb-14 md:grid-cols-3 md:gap-5">
+      {/* 游戏卡片（四款：中屏 2 列、大屏 4 列） */}
+      <section className="grid grid-cols-1 gap-4 pb-14 md:grid-cols-2 lg:grid-cols-4 lg:gap-5">
         {GAMES.map((g) => (
           <Link key={g.href} href={g.href}
             className="card card-hover group flex flex-col gap-3 border border-black/5 bg-white/70 p-6 shadow-sm backdrop-blur-md">

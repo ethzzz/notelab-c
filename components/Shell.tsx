@@ -24,6 +24,7 @@ const GAME_MENU: HoverMenuItem[] = [
   { href: "/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
   { href: "/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
   { href: "/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
+  { href: "/thunder", name: "雷霆战机", desc: "纵版弹幕 · 闯关", emoji: "✈️" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {
