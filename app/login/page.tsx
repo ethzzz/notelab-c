@@ -1,23 +1,33 @@
 "use client"
 // C 端登录：POST /api/c/auth/login；成功后回跳被拦截前记录的页面（无记录则回首页）
-import { useEffect, useState } from "react"
+// ?next=<站内路径>：外部门禁（如 /ailab/ 的 nginx SSO）跳来时优先回该路径
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { apiJson, postJson, takeRedirectPath } from "@/lib/api"
 import { toast } from "sonner"
 import { FormField, TextInput, PasswordInput } from "@/components/ui/form"
 import { User, Lock } from "lucide-react"
 
-export default function LoginPage() {
+/** next 参数仅允许站内绝对路径（防开放重定向）：单 / 开头、非 //、不含反斜杠 */
+function safeNext(p: string | null): string | null {
+  if (!p || !p.startsWith("/") || p.startsWith("//") || p.includes("\\")) return null
+  return p
+}
+
+function LoginInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const nextParam = safeNext(searchParams.get("next"))
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
   const [error, setError] = useState("")
 
-  /** 登录/会话有效后回跳：优先被拦截前记录的路由，无效则回首页 */
+  /** 登录/会话有效后回跳：next 参数（可能跨应用，走整页跳转）> 被拦截前记录的路由 > 首页 */
   function goNext() {
+    if (nextParam) { window.location.assign(nextParam); return }
     router.replace(takeRedirectPath())
   }
 
@@ -86,5 +96,14 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+// useSearchParams 需 Suspense 包裹（Next.js App Router 静态渲染要求）
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginInner />
+    </Suspense>
   )
 }
