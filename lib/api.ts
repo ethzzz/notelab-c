@@ -27,9 +27,16 @@ export function postJson(path: string, body: any): Promise<any> {
 
 // ---------------- 未登录回跳：记录被拦截的路由，登录成功后返回 ----------------
 const REDIRECT_KEY = "notelab-c.redirect"
+// 与 next.config.ts 的 basePath 保持一致：window.location.pathname 带 /games 前缀，
+// 而 router 跳转会自动补 basePath，存储时必须剥掉前缀，否则回跳会变 /games/games/…
+const BASE_PATH = "/games"
 
-/** 校验未登录被拦到 login 页前，记录当前所在路由（含 query） */
+/** 校验未登录被拦到 login 页前，记录当前所在路由（含 query，已剥 basePath 前缀） */
 export function rememberPath(path: string) {
+  const base = path.split("?")[0]
+  const query = path.slice(base.length)
+  if (base === BASE_PATH) path = "/" + query
+  else if (base.startsWith(BASE_PATH + "/")) path = base.slice(BASE_PATH.length) + query
   try { localStorage.setItem(REDIRECT_KEY, path) } catch { /* ignore */ }
 }
 
