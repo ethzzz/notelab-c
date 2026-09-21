@@ -9,7 +9,7 @@ import { resolveBgStyle, themeById } from "@/lib/themes"
 import { fetchMe, type CUser } from "@/lib/auth"
 import Modal from "@/components/ui/modal"
 import HoverMenu, { type HoverMenuItem } from "@/components/hover-menu"
-import { LogOut, User as UserIcon, House, BookOpen, TowerControl, Ghost, Gamepad2 } from "lucide-react"
+import { LogOut, User as UserIcon, House, BookOpen, TowerControl, Ghost, Gamepad2, Languages } from "lucide-react"
 
 // 移动端底部 Tab（桌面导航已改为 首页 + 游戏中心悬浮菜单）
 const NAV = [
@@ -90,6 +90,13 @@ export default function Shell({ children }: { children: ReactNode }) {
             <House size={15} /> 首页
           </Link>
           <HoverMenu label="游戏中心" icon={<Gamepad2 size={15} />} items={GAME_MENU} pathname={pathname} dark={dark} />
+          {/* 每日英语翻译练习（非游戏入口，单独一项） */}
+          <Link href="/translate"
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${isActive("/translate")
+              ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/25"
+              : dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
+            <Languages size={15} /> 每日翻译
+          </Link>
         </nav>
 
         {/* 右侧：登录按钮 / 用户下拉 */}
