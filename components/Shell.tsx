@@ -9,22 +9,27 @@ import { resolveBgStyle, themeById } from "@/lib/themes"
 import { fetchMe, type CUser } from "@/lib/auth"
 import Modal from "@/components/ui/modal"
 import HoverMenu, { type HoverMenuItem } from "@/components/hover-menu"
-import { LogOut, User as UserIcon, House, BookOpen, TowerControl, Ghost, Gamepad2, Languages } from "lucide-react"
+import { LogOut, User as UserIcon, Gamepad2, Languages, Wrench, ExternalLink } from "lucide-react"
 
-// 移动端底部 Tab（桌面导航已改为 首页 + 游戏中心悬浮菜单）
+// 移动端底部 Tab（桌面导航为 游戏中心 / 工具 两个悬浮菜单 + 返回主页）
 const NAV = [
-  { href: "/", name: "首页", icon: House },
-  { href: "/trpg", name: "TRPG", icon: BookOpen },
-  { href: "/spire", name: "爬塔", icon: TowerControl },
-  { href: "/vs", name: "幸存者", icon: Ghost },
+  { href: "/", name: "游戏中心", icon: Gamepad2 },
+  { href: "/utils/translate", name: "每日翻译", icon: Languages },
 ]
 
-// 游戏中心主 tab 的子菜单（悬停展开）
+// 游戏中心子模块的子菜单（悬停展开）：概览 + 四款游戏
 const GAME_MENU: HoverMenuItem[] = [
+  { href: "/", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮" },
   { href: "/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
   { href: "/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
   { href: "/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
   { href: "/thunder", name: "雷霆战机", desc: "纵版弹幕 · 闯关", emoji: "✈️" },
+]
+
+// 工具类子模块的子菜单（悬停展开）：目前仅每日翻译，后续可扩展
+const TOOLS_MENU: HoverMenuItem[] = [
+  { href: "/utils", name: "工具首页", desc: "全部工具一览", emoji: "🧰" },
+  { href: "/utils/translate", name: "每日英语翻译练习", desc: "每日更新 · AI 判分", emoji: "🌐" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -78,25 +83,18 @@ export default function Shell({ children }: { children: ReactNode }) {
         <Link href="/" className="flex items-center gap-2.5 min-w-0">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-base shadow-md shadow-indigo-600/30">🧪</span>
           <span className="font-bold tracking-wide whitespace-nowrap">NoteLab</span>
-          <span className={`hidden lg:inline text-[10px] rounded-full px-2.5 py-1 whitespace-nowrap border ${dark ? "text-zinc-300 bg-white/10 border-white/10" : "text-zinc-500 bg-black/[0.04] border-black/5"}`}>游戏中心</span>
+          <span className={`hidden lg:inline text-[10px] rounded-full px-2.5 py-1 whitespace-nowrap border ${dark ? "text-zinc-300 bg-white/10 border-white/10" : "text-zinc-500 bg-black/[0.04] border-black/5"}`}>玩家中心</span>
         </Link>
 
-        {/* 桌面端导航：首页 + 游戏中心（悬停展开子菜单） */}
+        {/* 桌面端导航：游戏中心 / 工具 两个悬浮菜单 + 返回主页（home 主模块） */}
         <nav className="hidden md:flex items-center gap-1 ml-4">
-          <Link href="/"
-            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${pathname === "/"
-              ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/25"
-              : dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
-            <House size={15} /> 首页
-          </Link>
           <HoverMenu label="游戏中心" icon={<Gamepad2 size={15} />} items={GAME_MENU} pathname={pathname} dark={dark} />
-          {/* 每日英语翻译练习（非游戏入口，单独一项） */}
-          <Link href="/translate"
-            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${isActive("/translate")
-              ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/25"
-              : dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
-            <Languages size={15} /> 每日翻译
-          </Link>
+          <HoverMenu label="工具" icon={<Wrench size={15} />} items={TOOLS_MENU} pathname={pathname} dark={dark} />
+          {/* 返回主站：home 个人主页为上层主模块，普通 <a> 跳出 basePath */}
+          <a href="/"
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
+            <ExternalLink size={15} /> 返回主页
+          </a>
         </nav>
 
         {/* 右侧：登录按钮 / 用户下拉 */}

@@ -74,7 +74,7 @@ function LoginInner() {
         <div className="flex flex-col items-center gap-2 mb-1">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl shadow-lg shadow-indigo-500/30">🧪</span>
           <div className="text-2xl font-bold text-zinc-800">NoteLab</div>
-          <div className="text-xs text-zinc-400 tracking-wide">登录游戏中心，开始你的冒险</div>
+          <div className="text-xs text-zinc-400 tracking-wide">登录玩家中心，开始你的冒险</div>
         </div>
         <FormField label="用户名">
           <TextInput icon={<User size={14} />} placeholder="请输入用户名" value={username}

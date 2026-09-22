@@ -1,5 +1,5 @@
 "use client"
-// C 端落地页：Hero + 三款游戏卡片（匿名可见）
+// C 端落地页：玩家中心 · 「游戏中心」子模块页（Hero + 四款游戏卡片，匿名可见）
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
@@ -27,8 +27,9 @@ export default function HomePage() {
     <div className="mx-auto max-w-5xl">
       {/* Hero */}
       <section className="flex flex-col items-center gap-4 pt-10 pb-12 text-center md:pt-16 md:pb-16">
-        <span className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 text-4xl shadow-xl shadow-indigo-600/30">🧪</span>
-        <h1 className="text-3xl font-black tracking-wide text-zinc-800 md:text-5xl">NoteLab 游戏中心</h1>
+        <span className="grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 text-4xl shadow-xl shadow-indigo-600/30">🎮</span>
+        <span className="text-[11px] font-medium tracking-widest text-indigo-500">玩家中心 · 游戏</span>
+        <h1 className="text-3xl font-black tracking-wide text-zinc-800 md:text-5xl">游戏中心</h1>
         <p className="max-w-xl text-sm leading-relaxed text-zinc-500 md:text-base">
           文字冒险、爬塔、幸存者与雷霆战机的世界。登录后即可开始游玩，进度自动保存，随时随地继续。
         </p>

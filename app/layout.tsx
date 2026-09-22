@@ -5,8 +5,8 @@ import { ConfirmHost } from "@/components/ui/confirm"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: { default: "NoteLab 游戏中心", template: "%s · NoteLab" },
-  description: "NoteLab C 端 · 文字冒险 / 爬塔 / 幸存者",
+  title: { default: "NoteLab 玩家中心", template: "%s · NoteLab" },
+  description: "NoteLab C 端玩家中心 · 游戏中心 / 每日翻译等工具",
 }
 
 export default function RootLayout({

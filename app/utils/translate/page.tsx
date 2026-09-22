@@ -1,5 +1,5 @@
 "use client"
-// 每日英语翻译练习（C 端）：每天 0 点后端激活一组中文句子，按 3 阶梯逐句提交英文译文 → 大模型判分。
+// 每日英语翻译练习（C 端 · 玩家中心「工具」类子模块）：每天 0 点后端激活一组中文句子，按 3 阶梯逐句提交英文译文 → 大模型判分。
 // 取数/回填 GET /api/translate/today；提交 POST /api/translate/submit（同人同日同句覆盖，可反复重交）。
 // 登录墙由 ./layout.tsx 的 RequireAuth 负责，页面本体只管练习交互（风格照 app/trpg/play）。
 import { useCallback, useEffect, useMemo, useState } from "react"
