@@ -12,6 +12,24 @@ import {
 import { SpireCardView as CardView } from "@/components/SpireCardView"
 import SpireMap from "@/components/SpireMap"
 import { loadSpireContent } from "@/lib/spire-content"
+import { fetchMe } from "@/lib/auth"
+
+// ---------------- 角色授权（按 C 端用户组前置筛选） ----------------
+/** 未登录/未知组一律按 default 处理 */
+const FALLBACK_GROUP = "default"
+/** 用户组文案：后端只给 code，这里映射展示名（未知组回落显示 code 本身） */
+const GROUP_LABEL: Record<string, string> = { default: "普通用户", vip: "VIP用户" }
+const groupLabel = (code: string) => GROUP_LABEL[code] || code
+
+/**
+ * 计算某组的可选角色白名单：
+ * charAccess 缺失 / 该组无键 → 返回 null，表示不筛选（fail-open，全部角色可选）。
+ */
+function allowListOf(charAccess: Record<string, string[]> | undefined, group: string): string[] | null {
+  if (!charAccess) return null
+  const v = charAccess[group]
+  return Array.isArray(v) ? v : null
+}
 
 function HpBar({ hp, maxHp, color = "bg-gradient-to-r from-emerald-500 to-lime-400" }: { hp: number; maxHp: number; color?: string }) {
   return (
@@ -71,6 +89,9 @@ export default function SpirePage() {
   const [pickOpen, setPickOpen] = useState(false)
   const [copyPick, setCopyPick] = useState(false) // 锦囊复刻：选择要复制的手牌
   const [upgradePick, setUpgradePick] = useState(false) // 补给营地：选择要强化的卡
+  // 角色授权：当前玩家所属 C 端用户组 + 已发布的授权白名单
+  const [userGroup, setUserGroup] = useState<string>(FALLBACK_GROUP)
+  const [charAccess, setCharAccess] = useState<Record<string, string[]>>({})
   const bump = () => setTick((t) => t + 1)
 
   // ---------------- 战斗特效 ----------------
@@ -123,11 +144,21 @@ export default function SpirePage() {
 
   useEffect(() => { setBest(Number(localStorage.getItem("spire-best") || 0)) }, [])
 
-  // 加载工坊自定义卡/角色并注册进引擎
+  // 加载工坊自定义卡/角色并注册进引擎，同时取回角色授权白名单（charAccess）
   useEffect(() => {
-    loadSpireContent().then((c) => { applyCustomContent(c.cards, c.characters); bump() })
+    loadSpireContent().then((c) => {
+      applyCustomContent(c.cards, c.characters)
+      setCharAccess(c.charAccess || {})
+      bump()
+    })
+    // 静默取当前登录用户（未登录/无 group_code 返回 null）→ 按 default 组处理；
+    // 本页不新增登录墙（路由级 RequireAuth 守卫在 app/spire/layout.tsx，维持现状）
+    fetchMe().then((me) => { if (me?.group_code) setUserGroup(me.group_code) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /** 当前玩家可选角色白名单；null = 不筛选（charAccess 未配置或该组无键） */
+  const allowList = allowListOf(charAccess, userGroup)
 
   const s = sp.current
 
@@ -140,6 +171,8 @@ export default function SpirePage() {
   }
 
   const pickCharacter = (charId: string) => {
+    // 双保险：白名单存在且不含该角色 → 拒绝开局（UI 上锁定卡片本就不触发点击）
+    if (allowList && !allowList.includes(charId)) return
     sp.current = newRun(charId)
     setPickOpen(false); setShowDeck(false); setRemoveMode(false); setCopyPick(false); setUpgradePick(false)
     bump()
@@ -162,23 +195,42 @@ export default function SpirePage() {
         <div className="mx-auto flex max-w-3xl flex-col items-center px-4 py-8">
           <h2 className="text-2xl font-black text-white">选择你的角色</h2>
           <p className="mt-1 text-xs text-zinc-400">每个角色拥有独特的被动与主动技能</p>
+          <p className="mt-1.5 text-[11px] text-indigo-300/90">
+            当前身份：<span className="font-bold">{groupLabel(userGroup)}</span>
+            {allowList ? "　·　部分角色需授权解锁（灰色锁定项为 VIP 专属）" : "　·　全部角色可选"}
+          </p>
           <div className="mt-6 grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {CHARACTERS.map((ch) => (
-              <button key={ch.id} onClick={() => pickCharacter(ch.id)}
-                className="group flex flex-col items-center rounded-2xl border border-white/10 bg-white/5 p-4 text-center transition-all hover:border-indigo-400/60 hover:bg-indigo-400/10 hover:shadow-lg hover:shadow-indigo-900/30">
-                <div className="text-5xl drop-shadow-[0_0_14px_rgba(129,140,248,0.35)]">{ch.icon}</div>
-                <div className="mt-2 text-base font-bold text-white">{ch.name}</div>
-                <div className="mt-0.5 text-[11px] text-zinc-400">{ch.desc}</div>
-                <div className="mt-1 text-[11px] text-emerald-300">❤️ {ch.maxHp} 生命</div>
-                <div className="mt-3 w-full rounded-xl bg-black/30 p-2.5 text-left">
-                  {ch.passives.map((p, i) => (
-                    <div key={i} className={`${i > 0 ? "mt-1.5" : ""} text-[11px] leading-relaxed text-amber-200/90`}>{p.icon} 被动·{p.name}<br /><span className="text-zinc-400">{p.desc}</span></div>
-                  ))}
-                  <div className="mt-1.5 text-[11px] leading-relaxed text-violet-200/90">{ch.skill.icon} 技能·{ch.skill.name}{ch.skill.kind === "echo-copy" ? "（每轮对战限一次）" : `（冷却 ${ch.skill.cooldown} 回合）`}<br /><span className="text-zinc-400">{ch.skill.desc}</span></div>
-                </div>
-                <div className="mt-3 rounded-full bg-gradient-to-r from-rose-600 to-amber-500 px-5 py-1.5 text-xs font-bold text-white opacity-90 group-hover:opacity-100">选择 {ch.name}</div>
-              </button>
-            ))}
+            {CHARACTERS.map((ch) => {
+              // 白名单存在且不含该角色 → 锁定：置灰 + 🔒 角标 + 点击不触发开局
+              const locked = allowList ? !allowList.includes(ch.id) : false
+              return (
+                <button key={ch.id}
+                  onClick={() => { if (!locked) pickCharacter(ch.id) }}
+                  aria-disabled={locked || undefined}
+                  title={locked ? "该角色未解锁 · VIP 专属/联系管理员" : `选择 ${ch.name}`}
+                  className={`group relative flex flex-col items-center rounded-2xl border p-4 text-center transition-all ${
+                    locked
+                      ? "cursor-not-allowed border-white/5 bg-white/[0.02] opacity-50 grayscale"
+                      : "border-white/10 bg-white/5 hover:border-indigo-400/60 hover:bg-indigo-400/10 hover:shadow-lg hover:shadow-indigo-900/30"
+                  }`}>
+                  {locked && <span className="absolute right-2.5 top-2.5 text-lg" aria-hidden>🔒</span>}
+                  <div className="text-5xl drop-shadow-[0_0_14px_rgba(129,140,248,0.35)]">{ch.icon}</div>
+                  <div className="mt-2 text-base font-bold text-white">{ch.name}</div>
+                  <div className="mt-0.5 text-[11px] text-zinc-400">{ch.desc}</div>
+                  <div className="mt-1 text-[11px] text-emerald-300">❤️ {ch.maxHp} 生命</div>
+                  <div className="mt-3 w-full rounded-xl bg-black/30 p-2.5 text-left">
+                    {ch.passives.map((p, i) => (
+                      <div key={i} className={`${i > 0 ? "mt-1.5" : ""} text-[11px] leading-relaxed text-amber-200/90`}>{p.icon} 被动·{p.name}<br /><span className="text-zinc-400">{p.desc}</span></div>
+                    ))}
+                    <div className="mt-1.5 text-[11px] leading-relaxed text-violet-200/90">{ch.skill.icon} 技能·{ch.skill.name}{ch.skill.kind === "echo-copy" ? "（每轮对战限一次）" : `（冷却 ${ch.skill.cooldown} 回合）`}<br /><span className="text-zinc-400">{ch.skill.desc}</span></div>
+                  </div>
+                  {locked
+                    ? <div className="mt-3 rounded-full bg-zinc-700/60 px-5 py-1.5 text-xs font-bold text-zinc-300">未解锁</div>
+                    : <div className="mt-3 rounded-full bg-gradient-to-r from-rose-600 to-amber-500 px-5 py-1.5 text-xs font-bold text-white opacity-90 group-hover:opacity-100">选择 {ch.name}</div>}
+                  {locked && <div className="mt-1.5 text-[10px] leading-snug text-zinc-400">该角色未解锁 · VIP 专属/联系管理员</div>}
+                </button>
+              )
+            })}
           </div>
           <button onClick={() => setPickOpen(false)} className="mt-6 rounded-xl border border-white/20 px-6 py-2 text-sm text-zinc-300 hover:bg-white/10">返回菜单</button>
         </div>
