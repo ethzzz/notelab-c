@@ -25,13 +25,14 @@ const blade = (
   <>
     <defs>{lg("spr-blade-body", "#3d4c7d", "#1b2340")}{lg("spr-blade-head", "#3b4878", "#232c50")}</defs>
     <Ground />
-    {/* 围巾尾（向后飘） */}
-    <path d="M40 44 C 26 46 17 40 11 31 C 22 36 30 34 38 38 Z" fill="#2f3a6b" />
     {/* 腿 */}
     <path d="M42 72 L39 90 L47 90 L48 74 Z" fill="#1a1f38" />
     <path d="M56 72 L59 90 L51 90 L50 74 Z" fill="#1a1f38" />
     {/* 身体 */}
     <path d="M38 42 C 36 56 34 68 36 76 L64 76 C 66 68 64 56 62 42 Z" fill="url(#spr-blade-body)" />
+    {/* 飘动的围巾：画在身体之上才看得见（浅色提亮，否则深底上糊成一片） */}
+    <path d="M42 42 C 30 46 20 42 12 33 C 22 40 32 38 40 40 Z" fill="#6ea8d8" />
+    <path d="M40 45 C 30 50 22 49 14 43 C 24 50 32 51 39 47 Z" fill="#4b7fae" />
     {/* 腰带 */}
     <path d="M36 62 L64 62" stroke="#8fb6ff" strokeWidth="2" />
     {/* 手臂 */}
@@ -42,9 +43,9 @@ const blade = (
     <path d="M36 30 C 36 18 44 12 50 12 C 56 12 64 18 64 30 C 58 26 42 26 36 30 Z" fill="#39477a" />
     {/* 眼缝 */}
     <path d="M43 30 L48 30 M52 30 L57 30" stroke="#7ff0ff" strokeWidth="3" />
-    {/* 双刃 */}
-    <path d="M28 64 L16 78 L21 81 L31 68 Z" fill="#cfe3ff" stroke="#5b6b8f" />
-    <path d="M72 64 L84 78 L79 81 L69 68 Z" fill="#cfe3ff" stroke="#5b6b8f" />
+    {/* 反握双刃：刃尖朝外下 */}
+    <path d="M28 63 L15 74 L20 79 L32 68 Z" fill="#cfe3ff" stroke="#5b6b8f" />
+    <path d="M72 63 L85 74 L80 79 L68 68 Z" fill="#cfe3ff" stroke="#5b6b8f" />
   </>
 )
 
@@ -58,9 +59,9 @@ const guard = (
     <path d="M36 40 C 34 56 33 68 36 76 L64 76 C 67 68 66 56 64 40 Z" fill="url(#spr-guard-body)" />
     {/* 颈 */}
     <path d="M46 34 L54 34 L54 42 L46 42 Z" fill="#4b5566" />
-    {/* 肩甲 */}
-    <path d="M36 42 C 26 46 22 54 24 60 L34 60 C 34 52 36 46 40 44 Z" fill="#d9b25f" stroke="#6d5322" strokeWidth="1.2" />
-    <path d="M64 42 C 74 46 78 54 76 60 L66 60 C 66 52 64 46 60 44 Z" fill="#d9b25f" stroke="#6d5322" strokeWidth="1.2" />
+    {/* 肩甲：厚实的圆角块（不用细三角，否则远看像翅膀） */}
+    <rect x="24" y="40" width="18" height="20" rx="7" fill="#d9b25f" stroke="#6d5322" strokeWidth="1.2" />
+    <rect x="58" y="40" width="18" height="20" rx="7" fill="#d9b25f" stroke="#6d5322" strokeWidth="1.2" />
     {/* 塔盾 */}
     <path d="M13 38 L35 38 C 37 58 32 76 24 86 C 16 76 11 58 13 38 Z" fill="url(#spr-guard-shield)" stroke="#4b5566" strokeWidth="1.4" />
     <path d="M24 43 L24 79 M15 52 L33 52" stroke="#798394" strokeWidth="1.2" />
@@ -227,9 +228,10 @@ const sentry = (
     <defs>{lg("spr-sentry-body", "#9aa1a9", "#5a6068")}</defs>
     <Ground rx={26} ry={5} />
     <path d="M26 92 L32 78 L68 78 L74 92 Z" fill="#6b7078" />
-    <path d="M34 78 L36 46 L64 46 L66 78 Z" fill="url(#spr-sentry-body)" />
-    <path d="M34 48 L22 54 L24 64 L36 60 Z" fill="#7f858d" />
-    <path d="M66 48 L78 54 L76 64 L64 60 Z" fill="#7f858d" />
+    <path d="M34 88 L36 46 L64 46 L66 88 Z" fill="url(#spr-sentry-body)" />
+    {/* 石臂：厚块而非薄翼 */}
+    <rect x="15" y="48" width="20" height="17" rx="5" fill="#7f858d" stroke="#5a6068" strokeWidth="1.2" />
+    <rect x="65" y="48" width="20" height="17" rx="5" fill="#7f858d" stroke="#5a6068" strokeWidth="1.2" />
     <path d="M38 44 L40 20 L60 20 L62 44 Z" fill="#8b9199" />
     <path d="M40 26 L60 26" stroke="#5a6068" strokeWidth="1.4" />
     <circle cx="50" cy="34" r="7" fill="#1d2126" stroke="none" />
@@ -257,17 +259,28 @@ const jadeGolem = (
   <>
     <defs>{lg("spr-golem-body", "#63c4b3", "#26695f")}{lg("spr-golem-arm", "#4f9f93", "#1f554e")}</defs>
     <Ground rx={34} ry={6} />
-    <path d="M32 72 L27 92 L44 92 L44 74 Z" fill="#26695f" />
-    <path d="M68 72 L73 92 L56 92 L56 74 Z" fill="#26695f" />
-    <path d="M32 40 C 28 56 28 68 32 78 L68 78 C 72 68 72 56 68 40 Z" fill="url(#spr-golem-body)" />
-    <path d="M32 42 C 18 44 8 54 10 64 L26 66 C 28 56 32 48 36 46 Z" fill="url(#spr-golem-arm)" stroke="#1c4a44" strokeWidth="1.3" />
-    <path d="M68 42 C 82 44 92 54 90 64 L74 66 C 72 56 68 48 64 46 Z" fill="url(#spr-golem-arm)" stroke="#1c4a44" strokeWidth="1.3" />
-    <path d="M40 38 L42 14 L58 14 L60 38 Z" fill="#6fcbbd" stroke="#1c4a44" strokeWidth="1.3" />
-    <path d="M44 24 L56 24" stroke="#1c4a44" strokeWidth="2" />
-    <circle cx="50" cy="57" r="9" fill="#0b2b28" stroke="none" />
-    <circle cx="50" cy="57" r="5" fill="#7dffe0" stroke="none" />
-    <path d="M36 52 L40 62 L36 70 M64 50 L60 60 L64 70" stroke="#1c4a44" strokeWidth="1.4" />
-    <path d="M14 44 L11 29 L21 38 Z M86 44 L89 29 L79 38 Z" fill="#9ff0dc" opacity=".85" stroke="none" />
+    {/* 石柱腿 */}
+    <path d="M32 74 L27 92 L45 92 L45 76 Z" fill="#26695f" stroke="#1c4a44" strokeWidth="1.2" />
+    <path d="M68 74 L73 92 L55 92 L55 76 Z" fill="#26695f" stroke="#1c4a44" strokeWidth="1.2" />
+    {/* 躯干 */}
+    <path d="M34 38 C 30 54 30 66 34 78 L66 78 C 70 66 70 54 66 38 Z" fill="url(#spr-golem-body)" />
+    {/* 巨大肩甲：实心厚块，一眼看出"重装" */}
+    <rect x="10" y="32" width="26" height="26" rx="9" fill="url(#spr-golem-arm)" stroke="#1c4a44" strokeWidth="1.3" />
+    <rect x="64" y="32" width="26" height="26" rx="9" fill="url(#spr-golem-arm)" stroke="#1c4a44" strokeWidth="1.3" />
+    {/* 粗臂 + 拳 */}
+    <path d="M22 58 L20 70 M78 58 L80 70" stroke="#2f7f74" strokeWidth="11" strokeLinecap="round" />
+    <circle cx="20" cy="76" r="8.5" fill="#3f8f84" stroke="#1c4a44" strokeWidth="1.3" />
+    <circle cx="80" cy="76" r="8.5" fill="#3f8f84" stroke="#1c4a44" strokeWidth="1.3" />
+    {/* 头（横向石面，留一条刻痕） */}
+    <rect x="39" y="12" width="22" height="26" rx="5" fill="#6fcbbd" stroke="#1c4a44" strokeWidth="1.3" />
+    <path d="M43 24 L57 24" stroke="#1c4a44" strokeWidth="2" />
+    {/* 胸口青玉核心 */}
+    <circle cx="50" cy="56" r="9" fill="#0b2b28" stroke="none" />
+    <circle cx="50" cy="56" r="5" fill="#7dffe0" stroke="none" />
+    {/* 躯干裂纹 */}
+    <path d="M37 48 L41 58 L37 68 M63 46 L59 56 L63 68" stroke="#1c4a44" strokeWidth="1.3" />
+    {/* 肩顶晶簇 */}
+    <path d="M16 32 L12 18 L24 26 Z M84 32 L88 18 L76 26 Z" fill="#9ff0dc" opacity=".85" stroke="none" />
   </>
 )
 
