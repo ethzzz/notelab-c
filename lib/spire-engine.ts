@@ -300,6 +300,8 @@ export interface EnemyState {
   hp: number; maxHp: number
   block: number; str: number; weak: number; vuln: number
   move: Move; moveIdx: number
+  /** 当前幕的伤害倍率（= actScale(act)）：意图预览与敌方出手都用它，保证数字一致 */
+  atkScale: number
 }
 
 const ENEMIES: EnemyDef[] = [
@@ -360,16 +362,48 @@ const ENEMIES: EnemyDef[] = [
       { name: "腐蚀喷吐", kind: "debuff", amt: 2, hits: 1, icon: "☠️", debuffKind: "weak" },
     ],
   },
+  // 第 2 幕 BOSS：厚甲 + 格挡，靠"晶簇崩落"多段磨血，逼玩家在爆发与防御间取舍
+  {
+    id: "jadeGolem", name: "青玉魔像", icon: "💠", hp: 165, boss: true, moves: [
+      { name: "碎岩重拳", kind: "atk", amt: 18, hits: 1, icon: "🪨" },
+      { name: "晶簇崩落", kind: "atk", amt: 9, hits: 2, icon: "💠" },
+      { name: "青玉壁障", kind: "block", amt: 14, hits: 1, icon: "🛡️" },
+      { name: "共鸣", kind: "buff", amt: 3, hits: 1, icon: "🔮" },
+    ],
+  },
+  // 终幕 BOSS：单段重击 + 三段连击 + 双 debuff，覆盖全部四种意图
+  {
+    id: "spireLord", name: "尖塔之主", icon: "🔺", hp: 200, boss: true, moves: [
+      { name: "终焉裁决", kind: "atk", amt: 22, hits: 1, icon: "⚔️" },
+      { name: "万钧坠击", kind: "atk", amt: 10, hits: 3, icon: "🌩️" },
+      { name: "邪能灌注", kind: "buff", amt: 4, hits: 1, icon: "🔺" },
+      { name: "王座威压", kind: "debuff", amt: 2, hits: 1, icon: "🌀", debuffKind: "weak" },
+      { name: "绝望凝视", kind: "debuff", amt: 2, hits: 1, icon: "👁️", debuffKind: "vuln" },
+    ],
+  },
 ]
 
 // ---------------- 状态与特效事件 ----------------
-export type Phase = "map" | "combat" | "reward" | "rest" | "shop" | "event" | "over" | "win"
+/** act-clear = 中途幕 BOSS 已击败、等待进入下一幕的幕间整备界面 */
+export type Phase = "map" | "combat" | "reward" | "rest" | "shop" | "event" | "act-clear" | "over" | "win"
 
 // ---------------- 地图：随机 DAG 路线图，所有路径汇聚于 BOSS ----------------
 export type NodeType = "enemy" | "elite" | "boss" | "rest" | "shop" | "event"
 export interface MapNode { id: string; row: number; col: number; type: NodeType; next: string[] }
 export interface SpireMap { nodes: MapNode[] }
 export const MAP_ROWS = 7
+/** 幕数：每一幕一张独立地图、顶端一个专属 BOSS；只有打完最后一幕的 BOSS 才算通关 */
+export const TOTAL_ACTS = 3
+/** 各幕 BOSS（下标 = 幕序 - 1）；取不到时回退到最后一幕的 BOSS */
+export const ACT_BOSS_IDS = ["king", "jadeGolem", "spireLord"]
+/**
+ * 逐幕难度系数：第 1 幕 ×1.0、第 2 幕 ×1.3、第 3 幕 ×1.6。
+ * 同时作用于敌方**血量**与**攻击伤害**（意图预览与实际结算共用，保证头顶数字不撒谎）。
+ * 数值取舍：让三幕 BOSS 的实际血量落在 ~180 / ~290 / ~435，终幕需要认真构筑才打得过。
+ */
+export const actScale = (act: number) => 1 + (Math.max(1, act) - 1) * 0.3
+/** 综合进度（跨幕），用于最佳纪录 —— 避免多幕后只记层数导致语义错乱；兼容旧值（层数） */
+export const runDepth = (s: { act: number; floor: number }) => (s.act - 1) * MAP_ROWS + s.floor
 export const NODE_META: Record<NodeType, { icon: string; name: string }> = {
   enemy: { icon: "⚔️", name: "普通敌人" },
   elite: { icon: "👹", name: "精英敌人" },
@@ -407,8 +441,10 @@ export interface ShopItem { uid: number; def: CardDef; price: number }
 export interface RunState {
   phase: Phase
   charId: string
-  floor: number
-  maxFloor: number
+  act: number             // 当前幕（1 基）
+  totalActs: number       // 总幕数
+  floor: number           // **当前幕内**层进度（1 基，0 = 尚未出发）
+  maxFloor: number        // 每幕层数（= MAP_ROWS）
   hp: number; maxHp: number
   gold: number
   deck: CardDef[] // 主卡组
@@ -442,6 +478,8 @@ export interface RunState {
   log: string[]
   uidSeq: number
   kills: number
+  actKills: number        // 本幕击杀数（幕间界面展示）
+  lastActKills: number    // 上一幕击杀数（进入新幕后保留，供幕间结算展示）
 }
 
 export const MAX_FLOOR = MAP_ROWS
@@ -469,6 +507,7 @@ export function newRun(charId = "blade"): RunState {
   const s: RunState = {
     phase: "map",
     charId: ch.id,
+    act: 1, totalActs: TOTAL_ACTS,
     floor: 0, maxFloor: MAP_ROWS,
     hp: ch.maxHp, maxHp: ch.maxHp, gold: 60,
     deck: [],
@@ -482,10 +521,10 @@ export function newRun(charId = "blade"): RunState {
     enemy: null,
     rewardCards: [], lastGold: 0,
     shopCards: [], shopPotions: [], shopRemoveUsed: false,
-    log: [], uidSeq: 1, kills: 0,
+    log: [], uidSeq: 1, kills: 0, actKills: 0, lastActKills: 0,
   }
   for (const id of ch.startDeck) s.deck.push(CARD_BY_ID[id])
-  log(s, "旅途开始：从起点选择一条路线，向尖塔顶端进发！")
+  log(s, `第 1/${TOTAL_ACTS} 幕启程：从起点选择一条路线，向尖塔顶端进发！`)
   return s
 }
 
@@ -549,38 +588,52 @@ export function enterNode(s: RunState, id: string): FxEvent[] {
   s.pos = id
   s.visited.push(id)
   s.floor = node.row + 1
-  if (node.type === "rest") { s.phase = "rest"; log(s, `—— 补给营地（${s.floor}/${MAP_ROWS}）——`); return fx }
+  if (node.type === "rest") { s.phase = "rest"; log(s, `—— 补给营地（第 ${s.act} 幕 · ${s.floor}/${MAP_ROWS} 层）——`); return fx }
   if (node.type === "shop") { openShop(s); return fx }
   if (node.type === "event") { resolveEvent(s); return fx }
   startCombat(s, node.type)
   return fx
 }
 
-// ---------------- 敌人选择（按节点类型） ----------------
-function pickEnemyDef(type: NodeType, floor: number): EnemyDef {
-  if (type === "boss") return ENEMIES.find((e) => e.id === "king")!
+// ---------------- 敌人选择（按节点类型 + 当前幕） ----------------
+function pickEnemyDef(type: NodeType, floor: number, act: number): EnemyDef {
+  // 每幕一个专属 BOSS；越界（自定义幕数）一律回退终幕 BOSS
+  if (type === "boss") {
+    const id = ACT_BOSS_IDS[Math.min(act, ACT_BOSS_IDS.length) - 1] ?? ACT_BOSS_IDS[ACT_BOSS_IDS.length - 1]
+    return ENEMIES.find((e) => e.id === id) ?? ENEMIES.find((e) => e.boss)!
+  }
   if (type === "elite") {
     const pool = ENEMIES.filter((e) => e.elite)
     return pool[rnd(pool.length)]
   }
-  const ids = floor <= 3 ? ["cultist", "louse", "worm"] : ["cultist", "worm", "slime", "fungi", "louse"]
+  // 普通怪池随幕推进升级：后幕不再出现最弱的虱子/邪教徒杂兵组合
+  const pools: Record<number, string[]> = {
+    1: ["cultist", "louse", "worm"],
+    2: ["cultist", "worm", "slime", "fungi", "louse"],
+    3: ["slime", "fungi", "worm", "cultist"],
+  }
+  const base = pools[Math.min(Math.max(act, 1), 3)] ?? pools[3]
+  const ids = floor <= 3 ? base.filter((x) => x !== "slime" || act > 1) : base
+  const use = ids.length > 0 ? ids : base
   // 修复：随机抽取必须在 find 谓词之外做一次；写在谓词内时每比对一个敌人都会重摇 id，
   // 全不命中的概率 (2/3)^3≈30%，导致进入战斗时 def=undefined 前端崩溃
-  const want = ids[rnd(ids.length)]
+  const want = use[rnd(use.length)]
   return ENEMIES.find((e) => e.id === want)!
 }
 
+/** 敌方本次攻击的预览伤害（含力量 / 虚弱 / 逐幕倍率）——与实际结算共用同一公式 */
 export function enemyAtkPreview(e: EnemyState): number {
-  let d = e.move.amt + e.str
+  let d = Math.round(e.move.amt * e.atkScale) + e.str
   if (e.weak > 0) d = Math.floor(d * 0.75)
   return d
 }
 
 function startCombat(s: RunState, type: NodeType) {
-  const def = pickEnemyDef(type, s.floor)
-  const hp = Math.round(def.hp * (1 + (s.floor - 1) * 0.06))
+  const def = pickEnemyDef(type, s.floor, s.act)
+  const scale = actScale(s.act)
+  const hp = Math.round(def.hp * (1 + (s.floor - 1) * 0.06) * scale)
   const moveIdx = rnd(def.moves.length)
-  s.enemy = { def, hp, maxHp: hp, block: 0, str: 0, weak: 0, vuln: 0, move: def.moves[moveIdx], moveIdx }
+  s.enemy = { def, hp, maxHp: hp, block: 0, str: 0, weak: 0, vuln: 0, move: def.moves[moveIdx], moveIdx, atkScale: scale }
   s.phase = "combat"
   s.block = 0; s.str = 0; s.tempStr = 0; s.weak = 0; s.vuln = 0
   s.energy = 3; s.turn = 1; s.playedThisTurn = 0
@@ -590,7 +643,7 @@ function startCombat(s: RunState, type: NodeType) {
   s.echoCopyUid = null; s.echoCopyUsed = false
   // 被动钩子（开局时机）：武诸葛【尽瘁】开局摸至 7 张
   drawCards(s, hasPassive(s, "start-hand-7")?.value ?? 5)
-  log(s, `—— 第 ${s.floor} 层：${def.name} 出现了 ——`)
+  log(s, `—— 第 ${s.act} 幕 · 第 ${s.floor} 层：${def.name} 出现了 ——`)
 }
 
 function drawCards(s: RunState, n: number) {
@@ -839,15 +892,54 @@ function victory(s: RunState) {
   const e = s.enemy!
   s.pendingEcho = null
   s.kills++
+  s.actKills++
   const gold = 8 + s.floor * 2 + rnd(6) + (e.def.elite ? 15 : 0) + (e.def.boss ? 30 : 0)
   s.gold += gold
   s.lastGold = gold
   log(s, `${e.def.name} 被击败！获得 ${gold} 金币`)
   const isBoss = !!e.def.boss
   s.enemy = null
-  if (isBoss) { s.phase = "win"; return }
+  if (isBoss) {
+    // 中途幕的 BOSS：进入下一幕（新地图 + 回满血 + 幕间界面）；只有终幕 BOSS 才算通关
+    if (s.act < s.totalActs) { enterNextAct(s); return }
+    s.phase = "win"
+    return
+  }
   s.rewardCards = rollRewardCards(s)
   s.phase = "reward"
+}
+
+/**
+ * 幕推进：换一张新地图、幕内进度归零、**血量回满**、清空战斗内状态 → 幕间界面（act-clear）。
+ * 金币 / 卡组 / 药水 / 已走过的强化跨幕保留（只有战斗态与幕内进度重置）。
+ */
+function enterNextAct(s: RunState) {
+  const cleared = s.act
+  s.lastActKills = s.actKills
+  s.actKills = 0
+  s.act++
+  s.map = generateMap()
+  s.pos = null
+  s.visited = []
+  s.floor = 0
+  s.hp = s.maxHp                     // 跨幕回满（需求：每进入一张新地图血量恢复满）
+  s.block = 0; s.str = 0; s.tempStr = 0; s.weak = 0; s.vuln = 0
+  s.enemy = null
+  s.hand = []; s.draw = []; s.discard = []
+  s.pendingEcho = null; s.pendingScry = null; s.scryTop = []
+  s.echoCopyUid = null; s.echoCopyPlayed = null; s.echoCopyUsed = false
+  s.rewardCards = []; s.eventResult = null
+  s.shopCards = []; s.shopPotions = []; s.shopRemoveUsed = false
+  s.turn = 1; s.energy = 3; s.skillCd = 0; s.playedThisTurn = 0
+  s.phase = "act-clear"
+  log(s, `★ 第 ${cleared} 幕通关！进入第 ${s.act}/${s.totalActs} 幕 · 血量已回满，敌人更强了`)
+}
+
+/** 幕间界面 → 继续前进：进入当前幕的路线图 */
+export function nextAct(s: RunState): FxEvent[] {
+  if (s.phase !== "act-clear") return []
+  s.phase = "map"
+  return []
 }
 
 function rollRewardCards(s: RunState): Card[] {
@@ -913,7 +1005,7 @@ function enemyAct(s: RunState, fx: FxEvent[]) {
   if (m.kind === "atk") {
     const hits = m.hits
     for (let i = 0; i < hits && s.hp > 0; i++) {
-      let dmg = m.amt + e.str
+      let dmg = Math.round(m.amt * e.atkScale) + e.str
       if (e.weak > 0) dmg = Math.floor(dmg * 0.75)
       if (s.vuln > 0) dmg = Math.floor(dmg * 1.5)
       const absorbed = Math.min(s.block, dmg)
@@ -1003,7 +1095,7 @@ function openShop(s: RunState) {
   const kinds = shuffle(Object.keys(POTION_DEFS) as PotionKind[]).slice(0, 2)
   for (const kind of kinds) s.shopPotions.push({ kind, price: 35 })
   s.phase = "shop"
-  log(s, `—— 商店（${s.floor}/${MAP_ROWS}）：出售卡牌与药水 ——`)
+  log(s, `—— 商店（第 ${s.act} 幕 · ${s.floor}/${MAP_ROWS} 层）：出售卡牌与药水 ——`)
 }
 
 export function buyPotion(s: RunState, idx: number) {

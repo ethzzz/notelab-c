@@ -24,14 +24,31 @@ function hash01(s: string, seed: number): number {
   return (h % 10000) / 10000
 }
 
-// ---------------- 视觉基调：克制哑光 ----------------
-// 近黑中性底（纵向微渐变），无霓虹；唯一强调色（当前节点/可达连线）为柔金
-const BG_TOP = "#15161c"
-const BG_BOTTOM = "#0d0e12"
-const ACCENT = "#d8b878"          // 当前节点亮环 / 可达连线（单一强调色，不做多色渐变）
-const TRAIL = "rgba(200,170,110,.55)" // 已走过路径：中性暖色
+// ---------------- 幕主题：同一套克制哑光，只换强调色与底色倾向 ----------------
+// 每幕一种气质（苔石 / 青玉 / 赤顶），保证三幕一眼可辨又不刺眼
+interface ActTheme {
+  name: string
+  accent: string                    // 当前节点亮环 / 可达连线
+  trail: string                     // 已走过路径
+  bgTop: string
+  bgBottom: string
+  spine: string                     // 中轴塔身光柱
+}
+const ACT_THEMES: ActTheme[] = [
+  { name: "苔石回廊", accent: "#d8b878", trail: "rgba(200,170,110,.55)", bgTop: "#15161c", bgBottom: "#0d0e12", spine: "rgba(216,184,120,.05)" },
+  { name: "青玉回廊", accent: "#7fd8c0", trail: "rgba(120,200,180,.5)", bgTop: "#111a19", bgBottom: "#0a1211", spine: "rgba(127,216,192,.05)" },
+  { name: "赤色尖顶", accent: "#e58a9a", trail: "rgba(220,120,140,.5)", bgTop: "#1a1218", bgBottom: "#100a0f", spine: "rgba(229,138,154,.055)" },
+]
+const themeOf = (act: number) => ACT_THEMES[Math.min(Math.max(act, 1), ACT_THEMES.length) - 1]
+/** 幕名（幕间界面等处引用，保证与地图主题同一真相源） */
+export const actThemeName = (act: number) => themeOf(act).name
+/** 幕强调色（页顶栏 / 战斗底色点缀用，与地图强调色一致） */
+export const actAccent = (act: number) => themeOf(act).accent
+
 const BASE_EDGE = "rgba(255,255,255,.12)" // 普通/未来路径：低透明安静细线
-const DISC_BG = "#1b1d24"         // 节点圆盘统一深底（取消径向渐变实心填充）
+const SHADOW_EDGE = "rgba(0,0,0,.5)"      // 连线底衬：给路径一点厚度
+// 圆盘底面：径向渐变（上亮下暗）做出球面体积，不再是纯色平盘
+const DISC_BG = "radial-gradient(circle at 50% 28%, #2b3040 0%, #1b1d24 62%, #12141a 100%)"
 
 // 类型配色：低饱和哑光。stroke=图标/描边提亮色，border=圆盘细描边色
 const TYPE_STYLE: Record<NodeType, { stroke: string; border: string }> = {
@@ -115,6 +132,18 @@ function Glyph({ type, className }: { type: NodeType; className?: string }) {
   )
 }
 
+/** 塔形纹章：地图右上角极淡的幕标识（自绘，无外链素材） */
+function SpireEmblem({ className, color }: { className?: string; color: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke={color}
+      strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9.6 21 10.6 8.4 12 3.2 13.4 8.4 14.4 21 Z" />
+      <path d="M7.6 21 h8.8" />
+      <path d="M10.9 11.6 h2.2 M10.8 14.6 h2.4 M10.7 17.6 h2.6" />
+    </svg>
+  )
+}
+
 // 行号罗马数字（仅节奏提示，不抢视觉）
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 
@@ -125,6 +154,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
   const pos = s.pos
   const totalRows = rows.length
   const allNodes = rows.flat()
+  const theme = themeOf(s.act)
 
   const [compact, setCompact] = useState(false)
   useEffect(() => {
@@ -209,6 +239,14 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
     height: containerHeight,
   }
 
+  const pathD = (e: { x1: number; y1: number; x2: number; y2: number }) => {
+    const dy = e.y2 - e.y1
+    return `M ${e.x1} ${e.y1} C ${e.x1} ${e.y1 + dy * 0.5}, ${e.x2} ${e.y2 - dy * 0.5}, ${e.x2} ${e.y2}`
+  }
+
+  // BOSS 行：单独画一条虚线分隔 + 右侧标注（末行恒为 1 个节点）
+  const bossRowTop = PAD_TOP + (totalRows - 1) * ROW_H
+
   return (
     <>
       <div
@@ -216,8 +254,8 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
         className="spire-map relative mx-auto w-full overflow-hidden rounded-2xl border border-white/[.07]"
         style={{
           maxWidth: MAX_W,
-          // 近黑中性底：极淡纵向渐变，不发光
-          background: `linear-gradient(180deg, ${BG_TOP} 0%, ${BG_BOTTOM} 100%)`,
+          // 近黑中性底：极淡纵向渐变，不发光（底色倾向随幕微调）
+          background: `linear-gradient(180deg, ${theme.bgTop} 0%, ${theme.bgBottom} 100%)`,
         }}
       >
         <style>{`
@@ -233,6 +271,11 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
             0%   { opacity: 0; transform: translateY(7px); }
             100% { opacity: 1; transform: translateY(0); }
           }
+          /* 当前节点：极慢呼吸（3s），幅度很小，只做"我在这"的提示 */
+          @keyframes spire-breathe {
+            0%,100% { opacity: .28; transform: scale(1); }
+            50%     { opacity: .5;  transform: scale(1.1); }
+          }
           /* 可达节点：hover 轻放大 + 描边提亮（transition 在节点 span 上） */
           .spire-map button.spire-node:enabled:hover > span.spire-disc,
           .spire-map button.spire-node:enabled:focus-visible > span.spire-disc {
@@ -242,32 +285,76 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           }
         `}</style>
 
-        {/* 中心 vignette：极轻内阴影收边 */}
+        {/* 中轴"塔身"光柱 + 中心 vignette：给画面一个纵深的中心 */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0"
+          style={{
+            height: containerHeight,
+            margin: "0 auto", width: "42%",
+            background: `linear-gradient(180deg, ${theme.spine} 0%, transparent 78%)`,
+          }}
+        />
         <div
           className="pointer-events-none absolute inset-0"
           style={{ boxShadow: "inset 0 0 110px 10px rgba(0,0,0,.42)", borderRadius: "1rem" }}
         />
 
-        {/* 连线层 */}
+        {/* 幕标识（右上角，极淡） */}
+        <div className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5">
+          <span className="text-[11px] tracking-[.22em]" style={{ color: "rgba(255,255,255,.16)" }}>{theme.name}</span>
+          <SpireEmblem className="h-4 w-4" color={theme.accent} />
+        </div>
+
+        {/* 行参考线：每行一条极淡横线，帮助眼睛对齐散列节点 */}
+        <div className="pointer-events-none absolute inset-0">
+          {rows.map((_, r) => (
+            <div
+              key={`g${r}`}
+              className="absolute"
+              style={{
+                left: compact ? 8 : 24,
+                right: compact ? 8 : 24,
+                top: PAD_TOP + r * ROW_H + ROW_H / 2,
+                height: 1,
+                background: "rgba(255,255,255,.028)",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* BOSS 前分隔线 + 标注：把"塔顶"从普通层里拎出来 */}
+        <div className="pointer-events-none absolute" style={{ left: compact ? 8 : 24, right: compact ? 8 : 24, top: bossRowTop }}>
+          <div style={{ height: 1, background: "rgba(255,255,255,.06)" }} />
+        </div>
+        <span
+          className="pointer-events-none absolute tracking-[.24em]"
+          style={{ right: compact ? 8 : 20, top: bossRowTop - 15, fontSize: compact ? 9 : 10, color: "rgba(255,255,255,.22)" }}
+        >
+          TOP
+        </span>
+
+        {/* 连线层：先铺一层暗底衬（厚度），再画状态线（颜色） */}
         <svg
           className="pointer-events-none absolute inset-0"
           width="100%"
           height={containerHeight}
           style={{ overflow: "visible", zIndex: 0 }}
         >
+          {edges.map((e, i) => (
+            <path key={`s${i}`} d={pathD(e)} fill="none" vectorEffect="non-scaling-stroke"
+              stroke={SHADOW_EDGE} strokeWidth={5} strokeLinecap="round" />
+          ))}
           {edges.map((e, i) => {
-            const dy = e.y2 - e.y1
-            const d = `M ${e.x1} ${e.y1} C ${e.x1} ${e.y1 + dy * 0.5}, ${e.x2} ${e.y2 - dy * 0.5}, ${e.x2} ${e.y2}`
             const active = e.state === "active"
             const trail = e.state === "trail"
             return (
               <path
                 key={i}
-                d={d}
+                d={pathD(e)}
                 vectorEffect="non-scaling-stroke"
                 fill="none"
-                stroke={active ? ACCENT : trail ? TRAIL : BASE_EDGE}
-                strokeOpacity={active ? 0.75 : trail ? 1 : 1}
+                stroke={active ? theme.accent : trail ? theme.trail : BASE_EDGE}
+                strokeOpacity={active ? 0.78 : 1}
                 strokeWidth={active ? 2.6 : trail ? 2.5 : 2}
                 strokeLinecap="round"
                 strokeDasharray={active ? "7 7" : undefined}
@@ -311,11 +398,12 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
               : done
               ? "opacity-40 grayscale-[.4]"
               : "opacity-50"
-            // 圆盘：统一深底 + 细描边 + 内阴影微立体；常态无外发光。
-            // 当前节点=细亮环+极克制柔光（全场唯一焦点）；BOSS=更粗描边环，无脉冲。
+            // 圆盘：径向渐变带来球面体积（上亮下暗）+ 细描边 + 内阴影微立体；常态无外发光。
+            // 当前节点=细亮环+极克制柔光（全场唯一焦点，带极慢呼吸）；BOSS=更粗描边环 + 外圈虚环。
             const discShadow = isCur
-              ? `0 0 0 1.5px ${ACCENT}, 0 0 16px rgba(216,184,120,.22), inset 0 1px 2px rgba(0,0,0,.5)`
-              : `inset 0 1px 2px rgba(0,0,0,.5)`
+              ? `0 0 0 1.5px ${theme.accent}, 0 0 16px ${theme.accent}38, inset 0 1px 2px rgba(0,0,0,.5)`
+              : `inset 0 1px 2px rgba(0,0,0,.5), 0 2px 5px rgba(0,0,0,.45)`
+            const discBg = DISC_BG
             return (
               <div
                 key={n.id}
@@ -327,6 +415,29 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                   zIndex: isBoss ? 10 : undefined,
                 }}
               >
+              {/* BOSS 外圈虚环：把塔顶节点和普通节点在体量上拉开 */}
+              {isBoss && (
+                <span
+                  className="pointer-events-none absolute left-1/2 top-1/2 rounded-full"
+                  style={{
+                    width: size + (compact ? 14 : 22), height: size + (compact ? 14 : 22),
+                    marginLeft: -(size + (compact ? 14 : 22)) / 2, marginTop: -(size + (compact ? 14 : 22)) / 2,
+                    border: `1px dashed ${ts.border}`, opacity: .55,
+                  }}
+                />
+              )}
+              {/* 当前节点呼吸环 */}
+              {isCur && (
+                <span
+                  className="pointer-events-none absolute left-1/2 top-1/2 rounded-full"
+                  style={{
+                    width: size + 14, height: size + 14,
+                    marginLeft: -(size + 14) / 2, marginTop: -(size + 14) / 2,
+                    border: `1px solid ${theme.accent}`,
+                    animation: "spire-breathe 3s ease-in-out infinite",
+                  }}
+                />
+              )}
               <button
                 disabled={!can}
                 onClick={() => onEnter(n.id)}
@@ -337,11 +448,11 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                 {/* 光圈/亮环必须挂在圆形 span 上（挂 button 会把 0 模糊 box-shadow 渲染成方框） */}
                 <span
                   ref={(el) => { circleRefs.current[n.id] = el }}
-                  className="spire-disc flex items-center justify-center rounded-full"
+                  className="spire-disc relative flex items-center justify-center rounded-full"
                   style={{
                     width: size, height: size,
-                    background: DISC_BG,
-                    border: `${isBoss ? 2.5 : 1.5}px solid ${isCur ? ACCENT : ts.border}`,
+                    background: discBg,
+                    border: `${isBoss ? 2.5 : 1.5}px solid ${isCur ? theme.accent : ts.border}`,
                     color: ts.stroke,
                     boxShadow: discShadow,
                     transition: "transform .16s ease, border-color .16s ease",
@@ -350,6 +461,15 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                   } as CSSProperties}
                 >
                   <Glyph type={n.type} className={isBoss ? "h-[58%] w-[58%]" : "h-[55%] w-[55%]"} />
+                  {/* 圆盘上缘高光弧：强化球面体积感 */}
+                  <span
+                    className="pointer-events-none absolute rounded-full"
+                    style={{
+                      left: "18%", right: "18%", top: "10%", height: "26%",
+                      background: "linear-gradient(180deg, rgba(255,255,255,.10), transparent)",
+                      borderRadius: "999px", filter: "blur(.4px)",
+                    }}
+                  />
                 </span>
               </button>
               </div>
