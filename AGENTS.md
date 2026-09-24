@@ -37,6 +37,22 @@ cd /root/notelab-c && npm run build && pm2 restart notelab-c
 - **只用 npm，不要用 pnpm**：`preinstall` 脚本会拦截（已移除，别再加回）。
 - 清理构建产物用 `rm -rf`：本机 npm 相关删除会被 safe-delete 策略拦 trash 操作。
 
+## 美术与音效：全是代码，仓库里没有任何素材文件
+
+**`public/` 目录不存在**。爬塔（`/spire`）的外观与声音**全部内联在代码里**，找素材包是走错方向：
+
+| 层 | 文件 | 做法 |
+|---|---|---|
+| 形象精灵 | `components/SpireSprites.tsx` | 内联 SVG（渐变塑体积 + 细描边 + 地面投影 + CSS 待机呼吸）；未知 id 回退 emoji |
+| 地图美术 | `components/SpireMap.tsx` | 内联 SVG + 按幕主题取色（`ACT_THEMES` / `actAccent` / `actThemeName`） |
+| 出牌动作 | `app/spire/page.tsx` | CSS `@keyframes`（突进 / 弹道 / 护盾环 / 能量粒），按「卡牌类型 × 角色」分派 |
+| 音效 | `lib/spire-audio.ts` | **Web Audio API 实时合成**，24 种音效，零音频文件 |
+
+- 依据是 `docs/TASK-PROMPT-SPIRE-ACTS.md` 的「资源约束」：**禁止外链图片 / emoji 当主形象 / 第三方图标库 / 受版权素材**。上述做法即为守住该约束。
+- **要换成真实录音音效**：音频放进 `public/sounds/`（需新建该目录），在 `lib/spire-audio.ts` 顶部的 `FILE_SOURCES` 登记一次即可 —— 命中走文件、拉取或解码失败自动回落合成音，**调用方无需改动**。注意同文件的 `SOUND_DIR` 常量硬编码了 `/games/sounds/`，**与 `next.config.ts` 的 basePath 绑定**，改前缀须同步。
+- 合成音效不涉及第三方素材，**因此不需要 credits 署名**。若日后引入 CC BY / CC BY-SA 类素材，须在页面加署名区块；CC BY-SA / GPL 有传染性，**不要引入**。
+- **改音效参数的验证方式**（构建期查不出静默哑音）：`exponentialRampToValueAtTime` 的目标必须是非零正数，传 0 / 负数会抛 `RangeError`，而 `sfx()` 全身 `try/catch`，越界只会**静默没声音**。做法是写一个 stub `AudioContext`（实现 `createGain/createOscillator/createBufferSource/createBiquadFilter/createBuffer` 并断言所有参数为有限数、指数斜坡目标为正），遍历全部音效 × 若干档音高，检查每个都产生了声源。Node 22 可直接跑：`node --experimental-strip-types <脚本>`（注意 strip-only 模式**不支持 TS 参数属性** `constructor(public x: T)`）。
+
 ## ⚠️ 本仓没有测试脚本
 仓库与服务器上**没有** `tests/` 目录，`package.json` 只有 `dev` / `build` / `start` 三个脚本。
 
