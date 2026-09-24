@@ -13,6 +13,7 @@ import { SpireCardView as CardView } from "@/components/SpireCardView"
 import SpireMap, { actThemeName, actAccent } from "@/components/SpireMap"
 import { SpireSprite, hasSpireSprite } from "@/components/SpireSprites"
 import { loadSpireContent } from "@/lib/spire-content"
+import { sfx, unlockSpireAudio, isSpireMuted, setSpireMuted, type SpireSfx } from "@/lib/spire-audio"
 import { fetchMe } from "@/lib/auth"
 
 // ---------------- 跨幕进度显示 ----------------
@@ -34,6 +35,42 @@ const CHAR_FX: Record<string, { color: string; glow: string; proj: "slash" | "or
 }
 const DEFAULT_FX = { color: "#dbe4ff", glow: "rgba(219,228,255,.85)", proj: "orb" as const }
 
+// ---------------- 音效：引擎事件 / 卡牌类型 → 音色 ----------------
+/** 四种卡牌类型各有一套辨识度（攻击=挥砍、防御=举盾、增益=上行琶音、特殊=上滑颤音） */
+const CARD_SFX: Record<CardCategory, SpireSfx> = {
+  attack: "card-attack", defense: "card-defense", buff: "card-buff", special: "card-special",
+}
+
+/**
+ * 非伤害事件 → 音效 + 优先级。一次结算里同类事件可能连发（多段攻击、群体 debuff），
+ * 因此只挑 rank 最高的一个出声，避免叠成噪音墙。
+ */
+const EVENT_SFX: Partial<Record<FxEvent["kind"], { name: SpireSfx; rank: number }>> = {
+  heal: { name: "heal", rank: 6 },
+  "gain-block": { name: "block", rank: 5 },
+  debuff: { name: "debuff", rank: 4 },
+  "gain-str": { name: "card-buff", rank: 3 },
+  energy: { name: "energy", rank: 2 },
+  draw: { name: "draw", rank: 1 },
+  generate: { name: "generate", rank: 1 },
+}
+
+/** 把一次结算的事件压成最多两声：一声命中（按总伤害变调）+ 一声最有存在感的其它事件 */
+function voiceForEvents(events: FxEvent[]): void {
+  if (events.length === 0) return
+  let dmg = 0
+  let best: SpireSfx | null = null
+  let bestRank = 0
+  for (const ev of events) {
+    if (ev.kind === "hit") { dmg += ev.dmg; continue }
+    if (ev.kind === "self-dmg") { dmg += ev.amt; continue }
+    const m = EVENT_SFX[ev.kind]
+    if (m && m.rank > bestRank) { bestRank = m.rank; best = m.name }
+  }
+  if (dmg > 0) sfx("hit", dmg >= 12 ? 0.82 : 1)
+  if (best) sfx(best)
+}
+
 
 // ---------------- 角色授权（按 C 端用户组前置筛选） ----------------
 /** 未登录/未知组一律按 default 处理 */
@@ -50,6 +87,17 @@ function allowListOf(charAccess: Record<string, string[]> | undefined, group: st
   if (!charAccess) return null
   const v = charAccess[group]
   return Array.isArray(v) ? v : null
+}
+
+/** 音效开关：状态落 localStorage，跨局持久（顶栏与地图页共用） */
+function SfxToggle({ muted, onToggle }: { muted: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} aria-pressed={muted}
+      title={muted ? "音效已关闭（点击开启）" : "音效已开启（点击关闭）"}
+      className={`rounded-lg border px-2.5 py-1 text-xs hover:bg-white/10 ${muted ? "border-white/10 text-zinc-500" : "border-white/15 text-zinc-200"}`}>
+      {muted ? "🔇 静音" : "🔊 音效"}
+    </button>
+  )
 }
 
 function HpBar({ hp, maxHp, color = "bg-gradient-to-r from-emerald-500 to-lime-400" }: { hp: number; maxHp: number; color?: string }) {
@@ -119,11 +167,22 @@ export default function SpirePage() {
   // 角色授权：当前玩家所属 C 端用户组 + 已发布的授权白名单
   const [userGroup, setUserGroup] = useState<string>(FALLBACK_GROUP)
   const [charAccess, setCharAccess] = useState<Record<string, string[]>>({})
+  // 音效开关：状态存 localStorage，跨局持久
+  const [muted, setMuted] = useState(false)
   const bump = () => setTick((t) => t + 1)
+
+  const toggleMute = () => {
+    const next = !muted
+    setMuted(next)
+    setSpireMuted(next)
+    // 开启时给一声即时反馈，顺便在用户手势里唤醒 AudioContext
+    if (!next) { unlockSpireAudio(); sfx("select") }
+  }
 
   /** 触发一次出牌动作动画：新动作会顶掉上一次（不排队，保证连点跟手） */
   const triggerAction = (kind: CardCategory) => {
     if (!sp.current) return
+    sfx(CARD_SFX[kind])
     setAction({ kind, charId: sp.current.charId, seq: actionSeq.current++ })
     if (actionTimer.current) window.clearTimeout(actionTimer.current)
     actionTimer.current = window.setTimeout(() => setAction(null), 560)
@@ -140,6 +199,7 @@ export default function SpirePage() {
   /** 消费引擎返回的特效事件：伤害飘字、受击抖动、状态图标飘字、重击屏震 */
   const fireFx = (events: FxEvent[]) => {
     if (!events || events.length === 0) return
+    voiceForEvents(events)
     const added: FloatFx[] = []
     let eh = false, ph = false, big = false, hitIdx = 0
     for (const ev of events) {
@@ -177,7 +237,24 @@ export default function SpirePage() {
     if (big) setScreenShake((t) => t + 1)
   }
 
-  useEffect(() => { setBest(Number(localStorage.getItem("spire-best") || 0)) }, [])
+  useEffect(() => {
+    setBest(Number(localStorage.getItem("spire-best") || 0))
+    setMuted(isSpireMuted())
+  }, [])
+
+  // 相位切换音效：幕间号角 / 通关凯歌 / 失败下行，以及商店与事件的进场音。
+  // 用「上一次相位」比对而非依赖数组 —— s 存在 ref 里，不会触发重渲染，只能靠每轮渲染轮询。
+  const lastPhase = useRef<string | null>(null)
+  useEffect(() => {
+    const ph = sp.current?.phase ?? null
+    if (ph === lastPhase.current) return
+    lastPhase.current = ph
+    if (ph === "act-clear") sfx("act-clear")
+    else if (ph === "win") sfx("win")
+    else if (ph === "over") sfx("lose")
+    else if (ph === "event") sfx("event")
+    else if (ph === "shop") sfx("shop")
+  })
 
   // 加载工坊自定义卡/角色并注册进引擎，同时取回角色授权白名单（charAccess）
   useEffect(() => {
@@ -203,12 +280,16 @@ export default function SpirePage() {
   }
 
   const start = () => {
+    // 首次用户手势：唤醒音频上下文（浏览器自动播放策略），并给一声点击反馈
+    unlockSpireAudio()
+    sfx("select")
     setPickOpen(true)
   }
 
   const pickCharacter = (charId: string) => {
     // 双保险：白名单存在且不含该角色 → 拒绝开局（UI 上锁定卡片本就不触发点击）
     if (allowList && !allowList.includes(charId)) return
+    sfx("select")
     sp.current = newRun(charId)
     setPickOpen(false); setShowDeck(false); setRemoveMode(false); setCopyPick(false); setUpgradePick(false); setAction(null)
     bump()
@@ -222,7 +303,7 @@ export default function SpirePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   })
 
-  const backToMenu = () => { sp.current = null; setShowDeck(false); setRemoveMode(false); setPickOpen(false); setCopyPick(false); setUpgradePick(false); setAction(null); bump() }
+  const backToMenu = () => { sfx("select"); sp.current = null; setShowDeck(false); setRemoveMode(false); setPickOpen(false); setCopyPick(false); setUpgradePick(false); setAction(null); bump() }
 
   // ---------------- 角色选择 ----------------
   if (!s && pickOpen) {
@@ -270,7 +351,7 @@ export default function SpirePage() {
               )
             })}
           </div>
-          <button onClick={() => setPickOpen(false)} className="mt-6 rounded-xl border border-white/20 px-6 py-2 text-sm text-zinc-300 hover:bg-white/10">返回菜单</button>
+          <button onClick={() => { sfx("select"); setPickOpen(false) }} className="mt-6 rounded-xl border border-white/20 px-6 py-2 text-sm text-zinc-300 hover:bg-white/10">返回菜单</button>
         </div>
       </div>
     )
@@ -345,7 +426,7 @@ export default function SpirePage() {
         <p className="mt-4 max-w-md text-[11px] leading-relaxed text-zinc-500">
           金币、卡组、药水与已强化的卡全部保留；下一幕会重新生成一张路线图（第 {s.act} 幕 · {actThemeName(s.act)}）。
         </p>
-        <button onClick={() => { nextAct(sp.current!); bump() }}
+        <button onClick={() => { sfx("card-buff"); nextAct(sp.current!); bump() }}
           className="mt-6 rounded-xl bg-gradient-to-r from-rose-600 to-amber-500 px-8 py-2.5 font-bold text-white hover:brightness-110">
           继续前进 ▶
         </button>
@@ -399,9 +480,10 @@ export default function SpirePage() {
             <span className="font-bold text-amber-300">🗼 第 {s.act}/{s.totalActs} 幕{s.floor > 0 ? ` · 第 ${s.floor}/${s.maxFloor} 层` : " · 起点"}</span>
             <span>🪙 {s.gold}</span>
             <span className="text-rose-300">❤️ {s.hp}/{s.maxHp}</span>
-            <PotionsBar potions={s.potions} onUse={(i) => { fireFx(usePotion(sp.current!, i)); bump() }} />
+            <PotionsBar potions={s.potions} onUse={(i) => { sfx("potion"); fireFx(usePotion(sp.current!, i)); bump() }} />
           </div>
           <div className="flex items-center gap-2">
+            <SfxToggle muted={muted} onToggle={toggleMute} />
             <button onClick={() => setShowDeck(true)} className="rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-200 hover:bg-white/10">🎴 卡组 {s.deck.length}</button>
             <button onClick={backToMenu} className="rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-400 hover:bg-white/10">🏳️ 放弃</button>
           </div>
@@ -409,7 +491,7 @@ export default function SpirePage() {
         <div className="text-center text-xs text-zinc-400">{s.pos ? "沿亮起的路线前进，所有路径最终汇聚于 BOSS" : "从起点选择一条路线出发"}</div>
         {/* 地图：网状连线图，每一节点连向上一/下一节点；block 流保证图例在地图下方，overflow-auto 兼顾小屏纵/横滚动 */}
         <div className="flex-1 overflow-auto px-2 py-3">
-          <SpireMap s={s} onEnter={(id) => { enterNode(sp.current!, id); bump() }} />
+          <SpireMap s={s} onEnter={(id) => { unlockSpireAudio(); sfx("select"); enterNode(sp.current!, id); bump() }} />
         </div>
         {/* 弹层：查看卡组 */}
         {showDeck && (
@@ -450,10 +532,11 @@ export default function SpirePage() {
         <div className="flex items-center gap-3 text-zinc-200">
           <span className="font-bold" style={{ color: accent }}>🗼 第 {s.act}/{s.totalActs} 幕 · 第 {s.floor}/{s.maxFloor} 层</span>
           <span>🪙 {s.gold}</span>
-          <PotionsBar potions={s.potions} onUse={(i) => { fireFx(usePotion(sp.current!, i)); bump() }} />
+          <PotionsBar potions={s.potions} onUse={(i) => { sfx("potion"); fireFx(usePotion(sp.current!, i)); bump() }} />
           <span className="text-zinc-400">回合 {s.turn}</span>
         </div>
         <div className="flex items-center gap-2">
+          <SfxToggle muted={muted} onToggle={toggleMute} />
           <button onClick={() => setShowDeck(true)} className="rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-200 hover:bg-white/10">🎴 卡组 {s.deck.length}</button>
           <button onClick={backToMenu} className="rounded-lg border border-white/15 px-2.5 py-1 text-xs text-zinc-400 hover:bg-white/10">🏳️ 放弃</button>
         </div>
@@ -602,9 +685,9 @@ export default function SpirePage() {
             <HpBar hp={s.hp} maxHp={s.maxHp} />
             <div className="mt-0.5 text-center text-[11px] text-zinc-300">{ch.icon} {s.hp}/{s.maxHp}</div>
           </div>
-          <button onClick={() => {
-              if (ch.skill.kind === "echo-copy") { setCopyPick(true); return }
-              fireFx(useSkill(sp.current!)); bump()
+            <button onClick={() => {
+              if (ch.skill.kind === "echo-copy") { sfx("select"); setCopyPick(true); return }
+              sfx("skill"); fireFx(useSkill(sp.current!)); bump()
             }}
             disabled={s.phase !== "combat" || (ch.skill.kind === "echo-copy" ? s.echoCopyUsed : s.skillCd > 0) || !!s.pendingEcho || !!s.pendingScry}
             title={`${ch.skill.name}：${ch.skill.desc}`}
@@ -614,7 +697,7 @@ export default function SpirePage() {
               ? (s.echoCopyUsed ? "（已用）" : "")
               : (s.skillCd > 0 ? `（${s.skillCd}）` : "")}
           </button>
-          <button onClick={() => { fireFx(endTurn(sp.current!)); bump() }} disabled={s.phase !== "combat" || !!s.pendingEcho || !!s.pendingScry}
+          <button onClick={() => { sfx("turn-end"); fireFx(endTurn(sp.current!)); bump() }} disabled={s.phase !== "combat" || !!s.pendingEcho || !!s.pendingScry}
             className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-bold text-white enabled:hover:brightness-110 disabled:opacity-40">
             结束回合 ▶
           </button>
@@ -650,10 +733,10 @@ export default function SpirePage() {
         <Overlay title="⚔️ 战斗胜利" sub={`获得 ${s.lastGold} 金币，选择一张卡牌加入卡组（可跳过）`}>
           <div className="flex flex-wrap justify-center gap-3">
             {s.rewardCards.map((c) => (
-              <CardView key={c.uid} def={c.def} onClick={() => { chooseReward(sp.current!, c.uid); bump() }} />
+              <CardView key={c.uid} def={c.def} onClick={() => { sfx("gold"); chooseReward(sp.current!, c.uid); bump() }} />
             ))}
           </div>
-          <button onClick={() => { chooseReward(sp.current!, null); bump() }}
+          <button onClick={() => { sfx("select"); chooseReward(sp.current!, null); bump() }}
             className="mt-4 rounded-lg border border-white/20 px-5 py-1.5 text-sm text-zinc-300 hover:bg-white/10">跳过奖励</button>
         </Overlay>
       )}
@@ -662,13 +745,13 @@ export default function SpirePage() {
       {s.phase === "rest" && (
         <Overlay title="🔥 补给营地" sub={`抵达第 ${s.floor} 层，选择一种休整方式`}>
           <div className="flex flex-wrap justify-center gap-3">
-            <button onClick={() => { fireFx(restHeal(sp.current!)); bump() }}
+            <button onClick={() => { sfx("rest"); fireFx(restHeal(sp.current!)); bump() }}
               className="w-44 rounded-xl border border-emerald-400/50 bg-emerald-500/10 p-4 text-center hover:bg-emerald-500/20">
               <div className="text-3xl">🔥</div>
               <div className="mt-1 font-bold text-emerald-300">营地休息</div>
               <div className="mt-0.5 text-[11px] text-zinc-400">回复 30% 最大生命</div>
             </button>
-            <button onClick={() => setUpgradePick(true)}
+            <button onClick={() => { sfx("select"); setUpgradePick(true) }}
               className="w-44 rounded-xl border border-sky-400/50 bg-sky-500/10 p-4 text-center hover:bg-sky-500/20">
               <div className="text-3xl">⚒️</div>
               <div className="mt-1 font-bold text-sky-300">锻造强化</div>
@@ -684,7 +767,7 @@ export default function SpirePage() {
           <div className="flex max-h-[50vh] flex-wrap justify-center gap-2 overflow-y-auto">
             {s.deck.map((d, i) => (
               <CardView key={i} def={d} small disabled={d.upgraded}
-                onClick={() => { restUpgrade(sp.current!, i); setUpgradePick(false); bump() }} />
+                onClick={() => { sfx("upgrade"); restUpgrade(sp.current!, i); setUpgradePick(false); bump() }} />
             ))}
           </div>
         </Overlay>
@@ -696,14 +779,14 @@ export default function SpirePage() {
           <div className="flex flex-wrap justify-center gap-3">
             {s.shopCards.map((it) => (
               <CardView key={it.uid} def={it.def} price={it.price} disabled={s.gold < it.price}
-                onClick={() => { buyCard(sp.current!, it.uid); bump() }} />
+                onClick={() => { sfx("shop"); buyCard(sp.current!, it.uid); bump() }} />
             ))}
             {s.shopCards.length === 0 && <div className="text-xs text-zinc-500">卡牌已售罄</div>}
           </div>
           {/* 药水货架 */}
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {s.shopPotions.map((p, i) => (
-              <button key={i} onClick={() => { buyPotion(sp.current!, i); bump() }}
+              <button key={i} onClick={() => { sfx("potion"); buyPotion(sp.current!, i); bump() }}
                 disabled={s.gold < p.price || s.potions.length >= MAX_POTIONS}
                 title={POTION_DEFS[p.kind].desc}
                 className="rounded-xl border border-sky-400/50 bg-sky-500/10 px-3 py-2 text-xs text-sky-200 enabled:hover:bg-sky-500/20 disabled:opacity-40">
@@ -713,12 +796,12 @@ export default function SpirePage() {
             {s.potions.length >= MAX_POTIONS && <span className="self-center text-[11px] text-zinc-500">药水架已满（{MAX_POTIONS} 格）</span>}
           </div>
           <div className="mt-4 flex justify-center gap-3">
-            <button onClick={() => setRemoveMode(true)}
+            <button onClick={() => { sfx("select"); setRemoveMode(true) }}
               disabled={s.shopRemoveUsed || s.gold < REMOVE_COST || s.deck.length <= 5}
               className="rounded-lg border border-rose-400/50 px-4 py-1.5 text-sm text-rose-300 enabled:hover:bg-rose-500/10 disabled:opacity-40">
               🗑️ 移除一张卡（🪙{REMOVE_COST}）{s.shopRemoveUsed ? "·已使用" : ""}
             </button>
-            <button onClick={() => { leaveShop(sp.current!); bump() }}
+            <button onClick={() => { sfx("select"); leaveShop(sp.current!); bump() }}
               className="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-1.5 text-sm font-bold text-white hover:brightness-110">
               离开商店 ▶
             </button>
@@ -730,7 +813,7 @@ export default function SpirePage() {
       {s.phase === "event" && s.eventResult && (
         <Overlay title={`${s.eventResult.icon} ${s.eventResult.title}`} sub={s.eventResult.desc}>
           <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-6 py-3 text-sm text-amber-200">🎉 {s.eventResult.result}</div>
-          <button onClick={() => { leaveEvent(sp.current!); bump() }}
+          <button onClick={() => { sfx("select"); leaveEvent(sp.current!); bump() }}
             className="mt-4 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2 text-sm font-bold text-white hover:brightness-110">
             继续前进 ▶
           </button>
@@ -751,7 +834,7 @@ export default function SpirePage() {
         <Overlay title="🗑️ 选择要移除的卡" sub={`花费 🪙${REMOVE_COST}，点击卡牌即移除`} onClose={() => setRemoveMode(false)}>
           <div className="flex max-h-[50vh] flex-wrap justify-center gap-2 overflow-y-auto">
             {s.deck.map((d, i) => (
-              <CardView key={i} def={d} small onClick={() => { removeCard(sp.current!, i); setRemoveMode(false); bump() }} />
+              <CardView key={i} def={d} small onClick={() => { sfx("remove"); removeCard(sp.current!, i); setRemoveMode(false); bump() }} />
             ))}
           </div>
         </Overlay>
