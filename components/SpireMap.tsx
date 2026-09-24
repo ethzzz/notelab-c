@@ -267,9 +267,11 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
             const isBoss = n.type === "boss"
             const ts = TYPE_STYLE[n.type]
             const size = isBoss ? (compact ? 60 : 96) : (compact ? 42 : 64)
-            const anim = isCur ? "spire-cur-pulse 1.8s ease-in-out infinite"
-                      : isBoss ? "spire-boss-pulse 2.6s ease-in-out infinite"
-                      : "spire-node-in .4s ease both"
+            // 入场缩放动画（transform/opacity）挂 button；脉冲光圈（box-shadow）必须挂圆形 span，
+            // 否则 0 模糊 + spread 的光圈会跟 button 直角渲染成正方形（当前节点/BOSS 方框残影根因）
+            const pulseAnim = isCur
+              ? "spire-cur-pulse 1.8s ease-in-out infinite"
+              : isBoss ? "spire-boss-pulse 2.6s ease-in-out infinite" : undefined
             const stateCls = isCur
               ? ""
               : can
@@ -298,7 +300,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                 disabled={!can}
                 onClick={() => onEnter(n.id)}
                 title={`第 ${n.row + 1} 层 · ${meta.name}`}
-                style={{ animation: anim }}
+                style={{ animation: "spire-node-in .4s ease both" }}
                 className={`flex flex-col items-center gap-2 outline-none ${stateCls}`}
               >
                 <span
@@ -310,6 +312,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                     borderColor: isCur ? "#fbbf24" : ts.border,
                     color: ts.icon,
                     boxShadow: shadow,
+                    animation: pulseAnim,
                     filter: done || (!can && !isCur) ? "grayscale(.55) brightness(.85)" : undefined,
                   }}
                 >

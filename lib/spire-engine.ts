@@ -564,7 +564,10 @@ function pickEnemyDef(type: NodeType, floor: number): EnemyDef {
     return pool[rnd(pool.length)]
   }
   const ids = floor <= 3 ? ["cultist", "louse", "worm"] : ["cultist", "worm", "slime", "fungi", "louse"]
-  return ENEMIES.find((e) => e.id === ids[rnd(ids.length)])!
+  // 修复：随机抽取必须在 find 谓词之外做一次；写在谓词内时每比对一个敌人都会重摇 id，
+  // 全不命中的概率 (2/3)^3≈30%，导致进入战斗时 def=undefined 前端崩溃
+  const want = ids[rnd(ids.length)]
+  return ENEMIES.find((e) => e.id === want)!
 }
 
 export function enemyAtkPreview(e: EnemyState): number {

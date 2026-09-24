@@ -306,8 +306,8 @@ export default function SpirePage() {
         </div>
       </div>
 
-      {/* 战斗区：左侧玩家形象 / 右侧怪物形象 */}
-      <div className="relative flex flex-1 items-center px-4 sm:px-10">
+      {/* 战斗区：左侧玩家形象 / 右侧怪物形象（min-h-0 使 flex-1 可收缩，为手牌换行腾出空间） */}
+      <div className="relative flex min-h-0 flex-1 items-center px-4 sm:px-10">
         {/* 左：玩家 */}
         <div className="relative flex flex-1 flex-col items-center justify-center gap-1.5">
           {/* 玩家飘字（受击 / 格挡 / 力量 / debuff / 回血 / 能量） */}
@@ -369,8 +369,8 @@ export default function SpirePage() {
         {s.log.slice(-2).map((l, i) => <div key={i}>{l}</div>)}
       </div>
 
-      {/* 玩家血量 + 操作 + 手牌 */}
-      <div className="border-t border-white/10 bg-black/30 px-4 pt-2 pb-3">
+      {/* 玩家血量 + 操作 + 手牌（shrink-0 保证手牌区不被战斗区挤压裁切） */}
+      <div className="shrink-0 border-t border-white/10 bg-black/30 px-4 pt-2 pb-3">
         <div className="flex items-center justify-center gap-4">
           <div className="flex items-center gap-2">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-b from-amber-400 to-orange-600 text-sm font-black text-white shadow">{s.energy}</span>
@@ -398,7 +398,7 @@ export default function SpirePage() {
           </button>
         </div>
 
-        <div className="mt-2 flex min-h-[8.5rem] flex-wrap items-end justify-center gap-2">
+        <div className="mt-2 flex max-h-[42vh] min-h-[8.5rem] flex-wrap items-end justify-center gap-2 overflow-y-auto">
           {s.hand.map((c) => {
             const isCopy = c.uid === s.echoCopyUid
             return (
