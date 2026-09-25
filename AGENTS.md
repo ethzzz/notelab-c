@@ -29,11 +29,15 @@
 
 `/translate` → `/utils/translate` 是永久跳转，写在 `next.config.ts` 的 `redirects()` 里；source / destination **相对 basePath，不要再加 `/games` 前缀**。
 
-## 构建与发布（生产在服务器，本地只读参考）
+## 构建与发布（本地改 → 服务器从 git 同步）
 ```bash
-ssh myapp
-cd /root/notelab-c && npm run build && pm2 restart notelab-c
+# 本地：改完提交推送
+git push origin main
+# 服务器：同步 + 构建 + 重启一条命令搞定
+ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
 ```
+- **不要在 `/root/notelab-c` 里手改代码**——服务器是只读部署目标；脚本发现工作区脏会直接拒绝执行。完整行为与参数见根 `AGENTS.md`「开发流程」。
+- 脚本只在**有变更**时构建；仅文档变更自动跳过（强制构建加 `--build`）；**构建失败不会重启服务**，老进程继续服务。
 - **只用 npm，不要用 pnpm**：`preinstall` 脚本会拦截（已移除，别再加回）。
 - 清理构建产物用 `rm -rf`：本机 npm 相关删除会被 safe-delete 策略拦 trash 操作。
 
@@ -77,4 +81,4 @@ cd /root/notelab-c && npm run build && pm2 restart notelab-c
 ## 纪律与禁区
 - **测试账号凭据在 `account.json`**（字段 `account` / `password`），已入 `.gitignore`。需要登录态做验收时读该文件登录；**严禁**把明文写进代码、文档或提交进仓库。
 - 不动 `myapp`（旧前端）、`notelab`（旧 Python 版）、`notelab-b`（后端管理台）。本仓只消费 B 端**已发布**的剧本 / 尖塔内容（`trpg_scenarios.published`）。
-- 本目录是**镜像**：真正生效的代码在服务器 `/root/notelab-c`。别只在本地改。
+- 本目录是本地工作副本，**改这里**；服务器 `/root/notelab-c` 是只读部署目标（由 `ops/sync-deploy.sh notelab-c` 从 git 拉取）。别去服务器上改。
