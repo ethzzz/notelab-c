@@ -172,12 +172,17 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
   }, [])
 
   const ROW_H = compact ? 84 : 116
-  const PAD_TOP = compact ? 36 : 64
-  const PAD_BOTTOM = compact ? 52 : 92
+  // 地图自下而上（第 1 层在最下、BOSS 在最上，与"爬塔"的推进方向一致），
+  // 所以原本留给末行 BOSS 的那一侧宽裕留白要跟着翻到顶部：
+  // BOSS 圆盘 96px + 外圈虚环 118px 几乎占满一行，顶部余量不足会被容器 overflow-hidden 裁掉
+  const PAD_TOP = compact ? 52 : 92
+  const PAD_BOTTOM = compact ? 36 : 64
   const LABEL_COL_W = compact ? 26 : 56
   // 图面高需容纳全部行：PAD_TOP + 每行 ROW_H + PAD_BOTTOM，
-  // 少算一行会导致末行（BOSS）被容器 overflow-hidden 裁切
+  // 少算一行会导致首行被容器 overflow-hidden 裁切
   const containerHeight = PAD_TOP + totalRows * ROW_H + PAD_BOTTOM
+  /** 行索引 → 该行顶边 y 坐标。自下而上，故 r 越大越靠上（r=0 落在最底部） */
+  const rowTop = (r: number) => PAD_TOP + (totalRows - 1 - r) * ROW_H
 
   // 尖塔式散列：同行节点按个数均摊全宽 + 确定性横/纵抖动（打破等距矩阵感）；
   // 单节点行（起点/BOSS）居中不抖动；抖动幅度限制在单元格内，防相邻重叠与容器溢出
@@ -189,13 +194,14 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
       const jy = spread ? (hash01(n.id, 13) - 0.5) * 2 * (compact ? 6 : 14) : 0
       layout.set(n.id, {
         xPct: ((i + 0.5 + jx) / row.length) * 100,
-        top: PAD_TOP + r * ROW_H + ROW_H / 2 + jy,
+        top: rowTop(r) + ROW_H / 2 + jy,
       })
     })
   })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const circleRefs = useRef<Record<string, HTMLSpanElement | null>>({})
+  const bottomRef = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState<
     { x1: number; y1: number; x2: number; y2: number; state: "base" | "trail" | "active" }[]
   >([])
@@ -232,9 +238,14 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allNodes, totalRows, pos, compact, [...visited], [...reach]])
 
-  // 小屏地图需滚动：进入/推进时把当前节点滚到视区中央
+  // 地图比视口高时需要滚动定位：推进时把当前节点滚到视区中央。
+  // 尚未出发（pos=null，含每幕开局）时滚到**底部**——地图自下而上，起点在第 1 行（最下），
+  // 不这样处理玩家开屏看到的是塔顶，得自己往下找才能找到可选的第一层
   useEffect(() => {
-    if (!pos) return
+    if (!pos) {
+      bottomRef.current?.scrollIntoView({ block: "end" })
+      return
+    }
     circleRefs.current[pos]?.scrollIntoView({ block: "center", behavior: "smooth" })
   }, [pos, compact])
 
@@ -250,8 +261,8 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
     return `M ${e.x1} ${e.y1} C ${e.x1} ${e.y1 + dy * 0.5}, ${e.x2} ${e.y2 - dy * 0.5}, ${e.x2} ${e.y2}`
   }
 
-  // BOSS 行：单独画一条虚线分隔 + 右侧标注（末行恒为 1 个节点）
-  const bossRowTop = PAD_TOP + (totalRows - 1) * ROW_H
+  // BOSS 行此刻在最上（地图自下而上）：分隔线画在它的**下沿**，把"塔顶"从普通层里拎出来（BOSS 行恒为 1 个节点）
+  const bossRowBottom = PAD_TOP + ROW_H
 
   return (
     <>
@@ -323,7 +334,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
               style={{
                 left: compact ? 8 : 24,
                 right: compact ? 8 : 24,
-                top: PAD_TOP + r * ROW_H + ROW_H / 2,
+                top: rowTop(r) + ROW_H / 2,
                 height: 1,
                 background: "rgba(255,255,255,.028)",
               }}
@@ -331,13 +342,13 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           ))}
         </div>
 
-        {/* BOSS 前分隔线 + 标注：把"塔顶"从普通层里拎出来 */}
-        <div className="pointer-events-none absolute" style={{ left: compact ? 8 : 24, right: compact ? 8 : 24, top: bossRowTop }}>
+        {/* BOSS 行下沿的分隔线 + 标注：把"塔顶"从普通层里拎出来（线在 BOSS 之下，标注挂在线下方） */}
+        <div className="pointer-events-none absolute" style={{ left: compact ? 8 : 24, right: compact ? 8 : 24, top: bossRowBottom }}>
           <div style={{ height: 1, background: "rgba(255,255,255,.06)" }} />
         </div>
         <span
           className="pointer-events-none absolute tracking-[.24em]"
-          style={{ right: compact ? 8 : 20, top: bossRowTop - 15, fontSize: compact ? 9 : 10, color: "rgba(255,255,255,.22)" }}
+          style={{ right: compact ? 8 : 20, top: bossRowBottom + 4, fontSize: compact ? 9 : 10, color: "rgba(255,255,255,.22)" }}
         >
           TOP
         </span>
@@ -373,13 +384,14 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           })}
         </svg>
 
-        {/* 主图面：绝对定位散列布局（左侧行号 + 节点区按行均摊加抖动） */}
+        {/* 主图面：绝对定位散列布局（左侧行号 + 节点区按行均摊加抖动）。
+            行号跟着行一起翻：第 r 行的标号（I/II/…）始终与 rows[r] 同一条水平线上 */}
         <div style={boardStyle}>
           {rows.map((row, r) => (
             <div
               key={`fl${r}`}
               className="absolute flex items-center justify-end"
-              style={{ left: 0, width: LABEL_COL_W, top: PAD_TOP + r * ROW_H, height: ROW_H, paddingRight: compact ? 4 : 12 }}
+              style={{ left: 0, width: LABEL_COL_W, top: rowTop(r), height: ROW_H, paddingRight: compact ? 4 : 12 }}
             >
               <span
                 className="whitespace-nowrap font-medium tabular-nums tracking-[.18em]"
@@ -488,6 +500,9 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           })}
           </div>
         </div>
+
+        {/* 底部锚点（零高、不可见）：未出发时用它把视口滚到地图底部——起点在第 1 行，也就是最下方 */}
+        <div ref={bottomRef} className="pointer-events-none absolute inset-x-0" style={{ bottom: 0, height: 1 }} />
       </div>
 
       {/* 图例：一行细线小图标 + sans 小字，低对比 */}
