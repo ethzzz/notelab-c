@@ -53,7 +53,21 @@ cd /root/notelab-c && npm run build && pm2 restart notelab-c
 - 合成音效不涉及第三方素材，**因此不需要 credits 署名**。若日后引入 CC BY / CC BY-SA 类素材，须在页面加署名区块；CC BY-SA / GPL 有传染性，**不要引入**。
 - **改音效参数的验证方式**（构建期查不出静默哑音）：`exponentialRampToValueAtTime` 的目标必须是非零正数，传 0 / 负数会抛 `RangeError`，而 `sfx()` 全身 `try/catch`，越界只会**静默没声音**。做法是写一个 stub `AudioContext`（实现 `createGain/createOscillator/createBufferSource/createBiquadFilter/createBuffer` 并断言所有参数为有限数、指数斜坡目标为正），遍历全部音效 × 若干档音高，检查每个都产生了声源。Node 22 可直接跑：`node --experimental-strip-types <脚本>`（注意 strip-only 模式**不支持 TS 参数属性** `constructor(public x: T)`）。
 
+- **改地图/精灵等视觉怎么验收**（构建期同样查不出"丑"）：盘面是 HTML div + inline style，**不能**用 resvg / SSR 渲染（`artwork-preview` 技能的 resvg 路线不适用；SSR 也跑不了测连线的 `useEffect`）。做法是搭一个独立**样式对照页**：把 `SpireMap.tsx` 里与缺陷相关的样式抽出来、常量驱动，一次渲染「改前 vs 改后 / 多幕 / 多状态」，再用**系统 Chrome 无头截图**读图验收：
+  ```bash
+  "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu \
+    --hide-scrollbars --window-size=1000,2100 --virtual-time-budget=3000 \
+    --screenshot="E:\...\out.png" "file:///E:/.../page.html"
+  ```
+  两条纪律：① **先让对照页复现已知缺陷**，复现不了就说明样式抄错了，此时"改后好看"没有意义；② 对照页只证明"这几条样式改对了"，**不等于**真实页面已对（父级背景、层叠、暗色变量都没覆盖）。
+  - 已知坑：包裹层 flex 居中 + 子元素 `width:100%` → 解析成 **0 宽**（截图只剩一条 1px 竖线）；`--screenshot` 会早于 JS 注入内容 → 先 `--dump-dom > page.static.html` 固化再截。
+  - 方法与"用 canvas 复现渐变、量横向亮度跳变来证明硬边消失"的技巧，见技能 `artwork-preview` 的「真浏览器路线」。
+- **Tailwind 裸数值类会静默失效**：`opacity-55` / `opacity-60` 在 v4 里**确实会生成**，但务必核一次——
+  `grep -rho '\.opacity-6[05]{[^}]*}' .next/static/chunks/*.css`。类若没生成，元素保持 `opacity:1`，**不报错**。
+  注意 CSS 产物在 `.next/static/chunks/*.css`，**没有** `.next/static/css/` 这个目录。
+
 ## ⚠️ 本仓没有测试脚本
+
 仓库与服务器上**没有** `tests/` 目录，`package.json` 只有 `dev` / `build` / `start` 三个脚本。
 
 若在**本地镜像**（`E:\code\NoteLab\notelab-c`）看到 `tests/`、`lib/vs-render.ts`，或 `test:vs` / `test:spire` / `test:games` 脚本——那是**从未入库、服务器上也不存在的过期遗留**（该镜像的 `app/vs/page.tsx` 等文件同样比仓库版本旧）。**不要把它们当成本仓结构，更不要据此改动**。需要准确版本时以服务器 `/root/notelab-c` 为准。
