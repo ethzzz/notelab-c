@@ -41,18 +41,24 @@ ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
 - **只用 npm，不要用 pnpm**：`preinstall` 脚本会拦截（已移除，别再加回）。
 - 清理构建产物用 `rm -rf`：本机 npm 相关删除会被 safe-delete 策略拦 trash 操作。
 
-## 美术与音效：全是代码，仓库里没有任何素材文件
+## 美术与音效：代码内联为主，`public/spire/` 是唯一例外（2026-09-26 起）
 
-**`public/` 目录不存在**。爬塔（`/spire`）的外观与声音**全部内联在代码里**，找素材包是走错方向：
+爬塔（`/spire`）的声音**仍然全部合成**（零音频文件），外观大部分内联在代码里；
+**唯一入仓的素材是地图节点图标包 `public/spire/`**（svg 为源 + 2x png + manifest + 生成配置 + 样例图）。
 
 | 层 | 文件 | 做法 |
 |---|---|---|
+| 地图节点图标 | `public/spire/svg/*.svg` | **素材包**，经 `NODE_META.sprite`（带 basePath 前缀 `/games`）用 `<img>` 引用；event 无素材、沿用自绘问号 |
+| 地图生成规则 | `public/spire/map-gen.config.json` | **生成配置**（权重 / 最小层数 / 揭示池 / 最大列数），被 `lib/spire-engine.ts` import —— 调平衡改这里，别在代码里写魔数 |
 | 形象精灵 | `components/SpireSprites.tsx` | 内联 SVG（渐变塑体积 + 细描边 + 地面投影 + CSS 待机呼吸）；未知 id 回退 emoji |
-| 地图美术 | `components/SpireMap.tsx` | 内联 SVG + 按幕主题取色（`ACT_THEMES` / `actAccent` / `actThemeName`） |
+| 地图盘面美术 | `components/SpireMap.tsx` | 内联 SVG + 按幕主题取色（`ACT_THEMES` / `actAccent` / `actThemeName`） |
 | 出牌动作 | `app/spire/page.tsx` | CSS `@keyframes`（突进 / 弹道 / 护盾环 / 能量粒），按「卡牌类型 × 角色」分派 |
 | 音效 | `lib/spire-audio.ts` | **Web Audio API 实时合成**，24 种音效，零音频文件 |
 
-- 依据是 `docs/TASK-PROMPT-SPIRE-ACTS.md` 的「资源约束」：**禁止外链图片 / emoji 当主形象 / 第三方图标库 / 受版权素材**。上述做法即为守住该约束。
+- 素材包来源是**自产**（非第三方素材库），所以不触发「禁止第三方图标库 / 受版权素材」那条约束；
+  **外链图片与 emoji 当主形象仍是禁区**，别因为有了 `public/` 就开始外链图片。
+- **素材包约定**（见 `public/spire/manifest.json`）：三层同尺寸同锚点叠加（node.base + icon.类型 + state.状态），
+  `svg/` 是源头、**要别的尺寸从 svg 重新导出，不要放大 png**；`state.*` / `link.*` 两组素材尚未接入，接入时按 manifest 的 `renderOrder`。
 - **要换成真实录音音效**：音频放进 `public/sounds/`（需新建该目录），在 `lib/spire-audio.ts` 顶部的 `FILE_SOURCES` 登记一次即可 —— 命中走文件、拉取或解码失败自动回落合成音，**调用方无需改动**。注意同文件的 `SOUND_DIR` 常量硬编码了 `/games/sounds/`，**与 `next.config.ts` 的 basePath 绑定**，改前缀须同步。
 - 合成音效不涉及第三方素材，**因此不需要 credits 署名**。若日后引入 CC BY / CC BY-SA 类素材，须在页面加署名区块；CC BY-SA / GPL 有传染性，**不要引入**。
 - **改音效参数的验证方式**（构建期查不出静默哑音）：`exponentialRampToValueAtTime` 的目标必须是非零正数，传 0 / 负数会抛 `RangeError`，而 `sfx()` 全身 `try/catch`，越界只会**静默没声音**。做法是写一个 stub `AudioContext`（实现 `createGain/createOscillator/createBufferSource/createBiquadFilter/createBuffer` 并断言所有参数为有限数、指数斜坡目标为正），遍历全部音效 × 若干档音高，检查每个都产生了声源。Node 22 可直接跑：`node --experimental-strip-types <脚本>`（注意 strip-only 模式**不支持 TS 参数属性** `constructor(public x: T)`）。
@@ -77,6 +83,26 @@ ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
 仓库与服务器上**没有** `tests/` 目录，`package.json` 只有 `dev` / `build` / `start` 三个脚本。
 
 若在**本地镜像**（`E:\code\NoteLab\notelab-c`）看到 `tests/`、`lib/vs-render.ts`，或 `test:vs` / `test:spire` / `test:games` 脚本——那是**从未入库、服务器上也不存在的过期遗留**（该镜像的 `app/vs/page.tsx` 等文件同样比仓库版本旧）。**不要把它们当成本仓结构，更不要据此改动**。需要准确版本时以服务器 `/root/notelab-c` 为准。
+
+### 唯一的验证脚本：地图生成约束断言（在 `.sync/`，不入库）
+
+`E:\code\NoteLab\.sync\verify-mapgen.js` 用来验证爬塔地图生成是否满足 `public/spire/map-gen.config.json` 的全部硬约束
+（不交叉 / 无死路 / 无孤立 / 唯一 BOSS / BOSS 前一层全 rest / 最小层数 / 开局两层只许 normal+random / shop-rest 不直连 / 入口可达全部节点）。
+它 transpile **真实引擎源码**来跑，不是重写一份逻辑——改了生成器或改了配置权重后**必须重跑**：
+
+```bash
+scp .sync/verify-mapgen.js notelab-c/lib/spire-engine.ts notelab-c/public/spire/map-gen.config.json myapp:/tmp/verify/
+ssh myapp "node /tmp/verify/verify-mapgen.js /tmp/verify/spire-engine.ts /tmp/verify/map-gen.config.json 800"
+# 验其它层数（确认生成器与层数无关）：VERIFY_LAYERS=7 前缀
+```
+
+⚠️ 它用 `ts.transpileModule`，**只剥类型、不做类型检查**——类型错误要靠服务器 `npx tsc --noEmit`，两者不能互相替代。
+
+### ⚠️ 本仓的 `tsc` 是可信的（与 notelab-b 相反）
+
+`npx tsc --noEmit` 在本仓输出干净、没有 notelab-b 那种「引用已删页面的陈旧 `.next/types`」噪音，
+所以**可以把服务器上的 `npx tsc --noEmit` 当部署前预检**：scp 改动文件进 `/root/notelab-c` → tsc → `git checkout -- <file>` 还原 → 再 push。
+两个仓的这条结论**不能混用**。
 
 ## 纪律与禁区
 - **测试账号凭据在 `account.json`**（字段 `account` / `password`），已入 `.gitignore`。需要登录态做验收时读该文件登录；**严禁**把明文写进代码、文档或提交进仓库。
