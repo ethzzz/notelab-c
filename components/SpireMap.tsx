@@ -47,17 +47,23 @@ export const actAccent = (act: number) => themeOf(act).accent
 
 const BASE_EDGE = "rgba(255,255,255,.12)" // 普通/未来路径：低透明安静细线
 const SHADOW_EDGE = "rgba(0,0,0,.5)"      // 连线底衬：给路径一点厚度
-// 圆盘底面：径向渐变（上亮下暗）做出球面体积，不再是纯色平盘
-const DISC_BG = "radial-gradient(circle at 50% 28%, #2b3040 0%, #1b1d24 62%, #12141a 100%)"
+// 圆盘底面：径向渐变（上亮下暗）做出球面体积。
+// 最外圈必须比三幕底色（#15161c / #111a19 / #1a1218）都亮 —— 原先外圈 #12141a 比幕1、幕3 的底色还暗，
+// 圆盘因此看起来像"洞"、与背景糊在一起；同时整体提一档亮度，让节点真正从底色里立起来
+const DISC_BG = "radial-gradient(circle at 50% 30%, #3e4553 0%, #272c37 58%, #1e222c 100%)"
+// 中轴光柱的横向羽化遮罩：中段实、两端渐隐。
+// 光柱若只有竖向渐变，左右两侧就是硬边，在深底上会显出一整块矩形色差（截图里"背景中间那块色差"）
+const SPINE_FADE = "linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 26%, rgba(0,0,0,.78) 44%, #000 50%, rgba(0,0,0,.78) 56%, rgba(0,0,0,.28) 74%, transparent 100%)"
 
-// 类型配色：低饱和哑光。stroke=图标/描边提亮色，border=圆盘细描边色
+// 类型配色：低饱和哑光。stroke=图标/描边提亮色，border=圆盘细描边色。
+// 圆盘底色提亮后，描边/图标同步提一档，否则细描边与图标会被更亮的盘面"吃掉"
 const TYPE_STYLE: Record<NodeType, { stroke: string; border: string }> = {
-  enemy: { stroke: "#8b93a7", border: "#3a4152" },
-  elite: { stroke: "#c9a24b", border: "#5a4a24" },
-  rest:  { stroke: "#6f9c6a", border: "#3a4f38" },
-  shop:  { stroke: "#b98a4e", border: "#4f3d26" },
-  event: { stroke: "#9a8fc0", border: "#454060" },
-  boss:  { stroke: "#c05a63", border: "#5a2730" },
+  enemy: { stroke: "#a6aec4", border: "#4d5771" },
+  elite: { stroke: "#d8b45c", border: "#7a6430" },
+  rest:  { stroke: "#82b47c", border: "#4e6b48" },
+  shop:  { stroke: "#cda05f", border: "#6b5433" },
+  event: { stroke: "#ab9fd4", border: "#5a5380" },
+  boss:  { stroke: "#d4717b", border: "#7a3944" },
 }
 
 // ---------------- 线性描边图标（自绘 path，fill=none / stroke=currentColor / round cap） ----------------
@@ -285,13 +291,16 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           }
         `}</style>
 
-        {/* 中轴"塔身"光柱 + 中心 vignette：给画面一个纵深的中心 */}
+        {/* 中轴"塔身"光柱 + 中心 vignette：给画面一个纵深的中心。
+            光柱用 mask 做横向羽化（中段实、两端渐隐）——否则宽度 42% 的竖向渐变会在左右留下硬边，
+            在近黑底上显出一整块矩形色差 */}
         <div
           className="pointer-events-none absolute inset-x-0 top-0"
           style={{
             height: containerHeight,
-            margin: "0 auto", width: "42%",
-            background: `linear-gradient(180deg, ${theme.spine} 0%, transparent 78%)`,
+            background: `linear-gradient(180deg, ${theme.spine} 0%, transparent 82%)`,
+            WebkitMaskImage: SPINE_FADE,
+            maskImage: SPINE_FADE,
           }}
         />
         <div
@@ -390,19 +399,21 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
             const isBoss = n.type === "boss"
             const ts = TYPE_STYLE[n.type]
             const size = isBoss ? (compact ? 60 : 96) : (compact ? 42 : 64)
-            // 状态可读性：可达=正常亮度可点；已走过=降透明+去饱和；未来不可达=更淡且禁用
+            // 状态可读性：可达=正常亮度可点；已走过=略降透明+去饱和；未来不可达=更淡但仍须看得见。
+            // 原先 .4/.5 在近黑底上会把圆盘连同描边一起抹掉（即"关卡与背景重叠"），故收窄到 .55/.60
             const stateCls = isCur
               ? ""
               : can
               ? "cursor-pointer"
               : done
-              ? "opacity-40 grayscale-[.4]"
-              : "opacity-50"
+              ? "opacity-55 grayscale-[.4]"
+              : "opacity-60"
             // 圆盘：径向渐变带来球面体积（上亮下暗）+ 细描边 + 内阴影微立体；常态无外发光。
             // 当前节点=细亮环+极克制柔光（全场唯一焦点，带极慢呼吸）；BOSS=更粗描边环 + 外圈虚环。
+            // 常态最外再加 1px 冷白细高光：暗底上靠它把圆盘边缘"切"出来，避免与背景融成一片
             const discShadow = isCur
               ? `0 0 0 1.5px ${theme.accent}, 0 0 16px ${theme.accent}38, inset 0 1px 2px rgba(0,0,0,.5)`
-              : `inset 0 1px 2px rgba(0,0,0,.5), 0 2px 5px rgba(0,0,0,.45)`
+              : `inset 0 1px 2px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.035)`
             const discBg = DISC_BG
             return (
               <div
@@ -466,7 +477,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                     className="pointer-events-none absolute rounded-full"
                     style={{
                       left: "18%", right: "18%", top: "10%", height: "26%",
-                      background: "linear-gradient(180deg, rgba(255,255,255,.10), transparent)",
+                      background: "linear-gradient(180deg, rgba(255,255,255,.12), transparent)",
                       borderRadius: "999px", filter: "blur(.4px)",
                     }}
                   />
