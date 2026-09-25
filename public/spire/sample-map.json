@@ -1,0 +1,112 @@
+{
+  "conformsTo": "map-gen.config.json@1.0.0",
+  "assets": "manifest.json",
+  "description": "一份符合生成规则的示例关卡图（16 层、43 个节点、69 条边）。仅用于让整合方确认数据结构，真实地图由程序生成。",
+  "meta": {
+    "layers": 16,
+    "entrance": "n0_0",
+    "boss": "n15_0",
+    "nodeCount": 43,
+    "edgeCount": 69,
+    "typeCounts": { "normal": 21, "elite": 7, "shop": 4, "rest": 4, "random": 6, "boss": 1 }
+  },
+  "nodes": [
+    { "id": "n0_0", "layer": 0, "col": 1, "type": "normal", "state": "available" },
+
+    { "id": "n1_0", "layer": 1, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n1_1", "layer": 1, "col": 2, "type": "random", "state": "locked", "revealedType": null },
+
+    { "id": "n2_0", "layer": 2, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n2_1", "layer": 2, "col": 1, "type": "shop", "state": "locked" },
+    { "id": "n2_2", "layer": 2, "col": 2, "type": "normal", "state": "locked" },
+
+    { "id": "n3_0", "layer": 3, "col": 0, "type": "elite", "state": "locked" },
+    { "id": "n3_1", "layer": 3, "col": 1, "type": "normal", "state": "locked" },
+    { "id": "n3_2", "layer": 3, "col": 2, "type": "random", "state": "locked", "revealedType": null },
+
+    { "id": "n4_0", "layer": 4, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n4_1", "layer": 4, "col": 1, "type": "elite", "state": "locked" },
+    { "id": "n4_2", "layer": 4, "col": 2, "type": "normal", "state": "locked" },
+    { "id": "n4_3", "layer": 4, "col": 3, "type": "normal", "state": "locked" },
+
+    { "id": "n5_0", "layer": 5, "col": 0, "type": "random", "state": "locked", "revealedType": null },
+    { "id": "n5_1", "layer": 5, "col": 1, "type": "normal", "state": "locked" },
+    { "id": "n5_2", "layer": 5, "col": 2, "type": "shop", "state": "locked" },
+    { "id": "n5_3", "layer": 5, "col": 3, "type": "rest", "state": "locked" },
+
+    { "id": "n6_0", "layer": 6, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n6_1", "layer": 6, "col": 1, "type": "elite", "state": "locked" },
+    { "id": "n6_2", "layer": 6, "col": 2, "type": "random", "state": "locked", "revealedType": null },
+    { "id": "n6_3", "layer": 6, "col": 3, "type": "normal", "state": "locked" },
+
+    { "id": "n7_0", "layer": 7, "col": 0, "type": "rest", "state": "locked" },
+    { "id": "n7_1", "layer": 7, "col": 1, "type": "normal", "state": "locked" },
+    { "id": "n7_2", "layer": 7, "col": 2, "type": "elite", "state": "locked" },
+    { "id": "n7_3", "layer": 7, "col": 3, "type": "normal", "state": "locked" },
+
+    { "id": "n8_0", "layer": 8, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n8_1", "layer": 8, "col": 1, "type": "normal", "state": "locked" },
+    { "id": "n8_2", "layer": 8, "col": 2, "type": "shop", "state": "locked" },
+
+    { "id": "n9_0", "layer": 9, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n9_1", "layer": 9, "col": 1, "type": "elite", "state": "locked" },
+    { "id": "n9_2", "layer": 9, "col": 2, "type": "random", "state": "locked", "revealedType": null },
+
+    { "id": "n10_0", "layer": 10, "col": 0, "type": "rest", "state": "locked" },
+    { "id": "n10_1", "layer": 10, "col": 1, "type": "normal", "state": "locked" },
+    { "id": "n10_2", "layer": 10, "col": 2, "type": "normal", "state": "locked" },
+
+    { "id": "n11_0", "layer": 11, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n11_1", "layer": 11, "col": 1, "type": "elite", "state": "locked" },
+    { "id": "n11_2", "layer": 11, "col": 2, "type": "shop", "state": "locked" },
+
+    { "id": "n12_0", "layer": 12, "col": 0, "type": "normal", "state": "locked" },
+    { "id": "n12_1", "layer": 12, "col": 1, "type": "random", "state": "locked", "revealedType": null },
+
+    { "id": "n13_0", "layer": 13, "col": 0, "type": "elite", "state": "locked" },
+    { "id": "n13_1", "layer": 13, "col": 1, "type": "normal", "state": "locked" },
+
+    { "id": "n14_0", "layer": 14, "col": 1, "type": "rest", "state": "locked" },
+
+    { "id": "n15_0", "layer": 15, "col": 1, "type": "boss", "state": "locked" }
+  ],
+  "edges": [
+    ["n0_0", "n1_0"], ["n0_0", "n1_1"],
+
+    ["n1_0", "n2_0"], ["n1_0", "n2_1"], ["n1_1", "n2_1"], ["n1_1", "n2_2"],
+
+    ["n2_0", "n3_0"], ["n2_1", "n3_0"], ["n2_1", "n3_1"], ["n2_2", "n3_1"], ["n2_2", "n3_2"],
+
+    ["n3_0", "n4_0"], ["n3_0", "n4_1"], ["n3_1", "n4_1"], ["n3_1", "n4_2"], ["n3_2", "n4_2"], ["n3_2", "n4_3"],
+
+    ["n4_0", "n5_0"], ["n4_1", "n5_0"], ["n4_1", "n5_1"], ["n4_2", "n5_1"], ["n4_2", "n5_2"], ["n4_3", "n5_2"], ["n4_3", "n5_3"],
+
+    ["n5_0", "n6_0"], ["n5_1", "n6_0"], ["n5_1", "n6_1"], ["n5_2", "n6_1"], ["n5_2", "n6_2"], ["n5_3", "n6_2"], ["n5_3", "n6_3"],
+
+    ["n6_0", "n7_0"], ["n6_1", "n7_0"], ["n6_1", "n7_1"], ["n6_2", "n7_1"], ["n6_2", "n7_2"], ["n6_3", "n7_2"], ["n6_3", "n7_3"],
+
+    ["n7_0", "n8_0"], ["n7_1", "n8_0"], ["n7_1", "n8_1"], ["n7_2", "n8_1"], ["n7_2", "n8_2"], ["n7_3", "n8_2"],
+
+    ["n8_0", "n9_0"], ["n8_1", "n9_0"], ["n8_1", "n9_1"], ["n8_2", "n9_1"], ["n8_2", "n9_2"],
+
+    ["n9_0", "n10_0"], ["n9_1", "n10_0"], ["n9_1", "n10_1"], ["n9_2", "n10_1"], ["n9_2", "n10_2"],
+
+    ["n10_0", "n11_0"], ["n10_1", "n11_0"], ["n10_1", "n11_1"], ["n10_2", "n11_1"], ["n10_2", "n11_2"],
+
+    ["n11_0", "n12_0"], ["n11_1", "n12_0"], ["n11_1", "n12_1"], ["n11_2", "n12_1"],
+
+    ["n12_0", "n13_0"], ["n12_1", "n13_0"], ["n12_1", "n13_1"],
+
+    ["n13_0", "n14_0"], ["n13_1", "n14_0"],
+
+    ["n14_0", "n15_0"]
+  ],
+  "_validationNotes": [
+    "已自检：第 0 层单入口 n0_0，第 15 层单 Boss n15_0；除 Boss 外每个节点均有出边（无死路）。",
+    "已自检：同层按 col 升序后边集单调，无交叉（任意 a<c 均有 b<=d）。",
+    "已自检：第 0~1 层仅 normal / random；elite 最早出现在第 3 层；shop / rest 最早出现在第 2 层。",
+    "已自检：shop 与 rest 均未被同一条边直连（n2_1 / n5_2 / n8_2 / n11_2 与 n5_3 / n7_0 / n10_0 / n14_0 两两不相邻）。",
+    "已自检：Boss 前一层 n14_0 为 rest。",
+    "type 为 random 的节点带 revealedType: null，玩家踏入后按 map-gen.config.json 的 revealPool roll 并写入该字段，然后渲染对应图标。"
+  ]
+}

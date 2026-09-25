@@ -1,0 +1,108 @@
+{
+  "version": "1.0.0",
+  "description": "地牢爬塔地图随机生成规则。消费方按此配置生成关卡图，节点渲染素材对照 manifest.json。",
+  "assetManifest": "manifest.json",
+
+  "map": {
+    "layers": 16,
+    "layerIndexStart": 0,
+    "maxColumns": 4,
+    "pathCount": [4, 6],
+    "shape": "spindle",
+    "shapeNote": "第 0 层单入口，最后一层单 Boss，中间层节点数按纺锤曲线铺开（中间宽、两头窄）。",
+    "entrance": { "layer": 0, "count": 1, "type": "normal" },
+    "boss": { "layer": 15, "count": 1, "type": "boss" },
+    "noCrossingEdges": true,
+    "noDeadEnd": true,
+    "noDeadEndNote": "除 Boss 外每个节点至少有一条出边，避免走进死路。"
+  },
+
+  "nodeTypes": {
+    "normal": { "name": "普通小怪", "icon": "icon.normal", "accent": "#E8E0D0", "weight": 45, "minLayer": 0 },
+    "elite": { "name": "精英怪", "icon": "icon.elite", "accent": "#FF3B2F", "weight": 15, "minLayer": 3 },
+    "shop": { "name": "商店", "icon": "icon.shop", "accent": "#2FB3A0", "weight": 12, "minLayer": 2 },
+    "rest": { "name": "休息点", "icon": "icon.rest", "accent": "#FF8A2B", "weight": 10, "minLayer": 2 },
+    "random": { "name": "随机（未揭示）", "icon": "icon.random", "accent": "#C9A6FF", "weight": 18, "minLayer": 0 },
+    "boss": { "name": "Boss", "icon": "icon.boss", "accent": "#B02020", "fixed": true }
+  },
+  "weightNote": "权重为相对值，按总和归一化；boss 由 map.boss 固定放置，不参与 roll。",
+
+  "constraints": [
+    {
+      "id": "early-tiers-safe",
+      "layers": [0, 1],
+      "allow": ["normal", "random"],
+      "reason": "开局两层只给低强度节点，避免玩家一上来撞精英。"
+    },
+    {
+      "id": "elite-not-before-tier-4",
+      "type": "elite",
+      "minLayer": 3,
+      "reason": "精英不早于第 4 层（0-based index >= 3）。"
+    },
+    {
+      "id": "shop-rest-not-before-tier-3",
+      "types": ["shop", "rest"],
+      "minLayer": 2,
+      "reason": "商店与休息点不早于第 3 层。"
+    },
+    {
+      "id": "shop-rest-not-adjacent",
+      "types": ["shop", "rest"],
+      "scope": "sameEdge",
+      "reason": "商店与休息点不能被同一条边直接相连（同一条路径上不相邻）。"
+    },
+    {
+      "id": "rest-before-boss",
+      "at": "bossLayer - 1",
+      "type": "rest",
+      "reason": "Boss 前一层强制放休息点，给玩家最后的回复窗口。"
+    },
+    {
+      "id": "single-boss",
+      "type": "boss",
+      "count": 1,
+      "reason": "全图唯一 Boss，所有路径最终汇聚于此。"
+    },
+    {
+      "id": "no-crossing",
+      "reason": "同层内连线禁止交叉，保证玩家能读出路线。"
+    }
+  ],
+
+  "randomNode": {
+    "display": "icon.random",
+    "revealOn": "playerEnter",
+    "stateTransition": ["unknown", "revealed"],
+    "revealPool": {
+      "normal": 45,
+      "elite": 15,
+      "shop": 12,
+      "rest": 10
+    },
+    "revealPoolNote": "揭示池不含 random 自身（不会揭示成另一个随机节点），按总和归一化后 roll。揭示后把 icon 层替换为对应类型图标。",
+    "behaviorNote": "生成阶段只占位，玩家踏入的那一刻才 roll —— 地图结构可以一次性生成完，类型却在玩家面前才揭晓，重开一局手感完全不同。"
+  },
+
+  "states": {
+    "available": { "overlay": "state.available", "meaning": "当前可进入" },
+    "cleared": { "overlay": "state.cleared", "meaning": "已通过" },
+    "locked": { "overlay": "state.locked", "meaning": "不可达" }
+  },
+
+  "layout": {
+    "nodeSize": 160,
+    "verticalGap": 96,
+    "horizontalGap": 200,
+    "direction": "bottomToTop",
+    "note": "第 0 层在最下方，层数递增向上；col 为层内列号，从左到右 0 起。"
+  },
+
+  "_integrationNotes": [
+    "生成顺序建议：先按纺锤曲线铺每层节点数与列号 → 连边（保证单调、无交叉、无死路）→ 按权重 roll 类型 → 套用 constraints 做校验/重roll → 固定 Boss 前一层为休息点。",
+    "constraints 是硬约束，roll 完必须逐条校验；冲突时对该节点重 roll，而不是跳过规则。",
+    "同层连线不交叉的实现要点：层内按 col 升序排列后，任意两条边 (a->b) 与 (c->d) 需满足 a<c 时 b<=d。",
+    "随机节点的揭示结果要写入存档，读档后直接渲染已揭示类型，不要重新 roll。",
+    "本文件与 manifest.json、sample-map.json 同目录，一起放进项目即可。"
+  ]
+}

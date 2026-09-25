@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react"
 import {
-  mapRows, reachableIds, NODE_META,
+  mapRows, reachableIds, NODE_META, nodeTypeOf,
   type RunState, type NodeType,
 } from "@/lib/spire-engine"
 
@@ -64,6 +64,8 @@ const TYPE_STYLE: Record<NodeType, { stroke: string; border: string }> = {
   shop:  { stroke: "#cda05f", border: "#6b5433" },
   event: { stroke: "#ab9fd4", border: "#5a5380" },
   boss:  { stroke: "#d4717b", border: "#7a3944" },
+  // 未揭示：取素材包 manifest 里 icon.random 的强调色 #C9A6FF
+  random: { stroke: "#c9a6ff", border: "#6a5596" },
 }
 
 // ---------------- 线性描边图标（自绘 path，fill=none / stroke=currentColor / round cap） ----------------
@@ -117,6 +119,14 @@ const GLYPHS: Record<NodeType, ReactNode> = {
       <path d="M12 16.9 v.2" />
     </>
   ),
+  // 石门 + 问号：仅作兜底（正常情况下 random 走素材包 icon-random.svg，见下方 Glyph）
+  random: (
+    <>
+      <path d="M6.4 20.2 V9.4 a5.6 5.6 0 0 1 11.2 0 V20.2" />
+      <path d="M6.4 20.2 h11.2" />
+      <path d="M12 20.2 v-5.6" />
+    </>
+  ),
   // 王冠：三尖冠体+底带+尖顶圆珠
   boss: (
     <>
@@ -129,7 +139,16 @@ const GLYPHS: Record<NodeType, ReactNode> = {
   ),
 }
 
+/**
+ * 节点图标：优先用素材包 public/spire/svg 下的矢量图标（NODE_META.sprite，路径已带 basePath /games）；
+ * 没有对应素材的类型（现在只有 event）回落到自绘线性图标。
+ * 素材包是矢量源，用 <img> 直接引用即可 —— 别改成内联或放大 png。
+ */
 function Glyph({ type, className }: { type: NodeType; className?: string }) {
+  const sprite = NODE_META[type].sprite
+  if (sprite) {
+    return <img src={sprite} alt="" aria-hidden="true" draggable={false} className={className} />
+  }
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor"
       strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -151,7 +170,9 @@ function SpireEmblem({ className, color }: { className?: string; color: string }
 }
 
 // 行号罗马数字（仅节奏提示，不抢视觉）
-const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+// 层数已改为每幕 16 层，罗马数字要跟到 XVI；再往上（自定义层数）由 ?? 兜底成阿拉伯数字
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+  "XI", "XII", "XIII", "XIV", "XV", "XVI"]
 
 export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: string) => void }) {
   const rows = mapRows(s)
@@ -404,12 +425,15 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
 
           <div className="absolute bottom-0 top-0 right-0" style={{ left: LABEL_COL_W }}>
           {allNodes.map((n) => {
-            const meta = NODE_META[n.type]
+            // 未揭示节点：揭示前按 random 渲染（封印石门），揭示后按真实类型渲染，
+            // 图标 / 描边配色 / 悬浮名三者必须一起切，否则会出现"问号图标 + 商店配色"的错位
+            const eff = nodeTypeOf(n)
+            const meta = NODE_META[eff]
             const isCur = pos === n.id
             const done = visited.has(n.id) && !isCur
             const can = reach.has(n.id)
             const isBoss = n.type === "boss"
-            const ts = TYPE_STYLE[n.type]
+            const ts = TYPE_STYLE[eff]
             const size = isBoss ? (compact ? 60 : 96) : (compact ? 42 : 64)
             // 状态可读性：可达=正常亮度可点；已走过=略降透明+去饱和；未来不可达=更淡但仍须看得见。
             // 原先 .4/.5 在近黑底上会把圆盘连同描边一起抹掉（即"关卡与背景重叠"），故收窄到 .55/.60
@@ -483,7 +507,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                     ["--spire-hi" as string]: ts.stroke,
                   } as CSSProperties}
                 >
-                  <Glyph type={n.type} className={isBoss ? "h-[58%] w-[58%]" : "h-[55%] w-[55%]"} />
+                  <Glyph type={eff} className={isBoss ? "h-[58%] w-[58%]" : "h-[55%] w-[55%]"} />
                   {/* 圆盘上缘高光弧：强化球面体积感 */}
                   <span
                     className="pointer-events-none absolute rounded-full"
@@ -508,7 +532,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
       {/* 图例：一行细线小图标 + sans 小字，低对比 */}
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12px]"
         style={{ color: "rgba(255,255,255,.45)" }}>
-        {(["enemy", "elite", "rest", "shop", "event", "boss"] as NodeType[]).map((t) => (
+        {(["enemy", "elite", "rest", "shop", "event", "random", "boss"] as NodeType[]).map((t) => (
           <span key={t} className="flex items-center gap-1.5">
             <span
               className="flex items-center justify-center rounded-full"

@@ -1,0 +1,169 @@
+{
+  "name": "dungeon-node-kit",
+  "version": "1.0.0",
+  "description": "地牢爬塔地图 · 可拆分节点素材包。底框全局复用一份，类型图标换着往里塞，状态覆盖层叠在最上层。所有资源同尺寸、同锚点、透明底。",
+  "spec": {
+    "nodeSize": 160,
+    "unit": "px",
+    "pngSize": 320,
+    "pngScale": 2,
+    "iconContentBox": 96,
+    "anchor": "center",
+    "transparent": true,
+    "formats": ["png", "svg"],
+    "svgIsSourceOfTruth": true
+  },
+  "renderOrder": ["background", "link", "nodeBase", "icon", "stateOverlay"],
+  "composition": {
+    "node": "node.base + icon.<type>",
+    "nodeWithState": "node.base + icon.<type> + state.<state>",
+    "note": "三层同尺寸同锚点，按中心对齐直接叠加。换类型只换 icon 层，底框与状态层不动。"
+  },
+  "linkUsage": {
+    "note": "连线尺寸 160x48，纵向首尾相接可无限延长；45° 方向用 link.branch 的斜边，水平段用 link.straight。",
+    "straight": "link.straight（水平直行段）",
+    "branch": "link.branch（自下向上分叉为左右两支）"
+  },
+  "assets": [
+    {
+      "id": "node.base",
+      "name": "节点底框",
+      "kind": "base",
+      "layer": "nodeBase",
+      "png": "png/node-base.png",
+      "svg": "svg/node-base.svg",
+      "size": [160, 160],
+      "accent": "#8A6A3C",
+      "reusable": true,
+      "notes": "石质徽章圆环，外径 148 / 内径 108。所有节点共用同一份。"
+    },
+    {
+      "id": "icon.normal",
+      "name": "普通小怪",
+      "kind": "icon",
+      "layer": "icon",
+      "png": "png/icon-normal.png",
+      "svg": "svg/icon-normal.svg",
+      "size": [160, 160],
+      "accent": "#E8E0D0",
+      "notes": "苍白小头骨，出现频次最高。"
+    },
+    {
+      "id": "icon.elite",
+      "name": "精英怪",
+      "kind": "icon",
+      "layer": "icon",
+      "png": "png/icon-elite.png",
+      "svg": "svg/icon-elite.svg",
+      "size": [160, 160],
+      "accent": "#FF3B2F",
+      "notes": "带外扩恶魔角的头骨 + 赤红眼 + 橙色余烬虚线环，体量明显大于普通小怪。"
+    },
+    {
+      "id": "icon.shop",
+      "name": "商店",
+      "kind": "icon",
+      "layer": "icon",
+      "png": "png/icon-shop.png",
+      "svg": "svg/icon-shop.svg",
+      "size": [160, 160],
+      "accent": "#2FB3A0",
+      "notes": "室外货摊：条纹遮阳棚 + 木柱 + 柜台 + 金币堆。"
+    },
+    {
+      "id": "icon.rest",
+      "name": "休息点",
+      "kind": "icon",
+      "layer": "icon",
+      "png": "png/icon-rest.png",
+      "svg": "svg/icon-rest.svg",
+      "size": [160, 160],
+      "accent": "#FF8A2B",
+      "notes": "露天篝火：明火 + 烧焦原木，无棚无商人，与商店一眼可辨。"
+    },
+    {
+      "id": "icon.random",
+      "name": "随机（未揭示）",
+      "kind": "icon",
+      "layer": "icon",
+      "png": "png/icon-random.png",
+      "svg": "svg/icon-random.svg",
+      "size": [160, 160],
+      "accent": "#C9A6FF",
+      "notes": "封印石门 + 发光问号。仅用于未揭示态；揭示后替换为实际类型图标。"
+    },
+    {
+      "id": "icon.boss",
+      "name": "Boss",
+      "kind": "icon",
+      "layer": "icon",
+      "png": "png/icon-boss.png",
+      "svg": "svg/icon-boss.svg",
+      "size": [160, 160],
+      "accent": "#B02020",
+      "notes": "巨型带角魔颅 + 獠牙 + 外圈红色余烬环。全图唯一，尺寸远超其他节点。"
+    },
+    {
+      "id": "link.straight",
+      "name": "连线-直行",
+      "kind": "link",
+      "layer": "link",
+      "png": "png/link-straight.png",
+      "svg": "svg/link-straight.svg",
+      "size": [160, 48],
+      "accent": "#A8834A",
+      "notes": "石雕小径 + 微光虚线，水平段。"
+    },
+    {
+      "id": "link.branch",
+      "name": "连线-分叉",
+      "kind": "link",
+      "layer": "link",
+      "png": "png/link-branch.png",
+      "svg": "svg/link-branch.svg",
+      "size": [160, 48],
+      "accent": "#A8834A",
+      "notes": "自下向上分叉为左右两支的 Y 形路径。"
+    },
+    {
+      "id": "state.available",
+      "name": "状态-可选",
+      "kind": "state",
+      "layer": "stateOverlay",
+      "png": "png/state-available.png",
+      "svg": "svg/state-available.svg",
+      "size": [160, 160],
+      "accent": "#D9A441",
+      "notes": "金色双环，标记当前可进入的节点。"
+    },
+    {
+      "id": "state.cleared",
+      "name": "状态-已通过",
+      "kind": "state",
+      "layer": "stateOverlay",
+      "png": "png/state-cleared.png",
+      "svg": "svg/state-cleared.svg",
+      "size": [160, 160],
+      "accent": "#5E5346",
+      "notes": "深色压暗圆盘 + 灰环，标记已通关节点。"
+    },
+    {
+      "id": "state.locked",
+      "name": "状态-锁定",
+      "kind": "state",
+      "layer": "stateOverlay",
+      "png": "png/state-locked.png",
+      "svg": "svg/state-locked.svg",
+      "size": [160, 160],
+      "accent": "#7A2E2E",
+      "notes": "半透明压暗 + 暗红虚线环，标记当前不可达节点。"
+    }
+  ],
+  "_integrationNotes": [
+    "所有 png/svg 相对路径均相对本文件所在目录（assets/node-kit/）。",
+    "node.base 建议做成共享 sprite / 共享节点，不要每个节点各拷贝一份。",
+    "icon.random 是临时态：揭示后直接把 icon 层替换成 icon.normal / icon.elite / icon.shop / icon.rest 之一。",
+    "state.* 覆盖层叠在 icon 之上，已通过 / 锁定两层含压暗填充，必须保证绘制顺序在最后。",
+    "整套资源是矢量源导出，若需要其他尺寸（512/1024）或精灵图集，从 svg/ 重新导出即可，不要放大 png。"
+  ]
+}

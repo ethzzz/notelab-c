@@ -381,7 +381,7 @@ export default function SpirePage() {
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="mb-1 font-bold text-white">🗺️ 随机路线图</div>
-              共 {TOTAL_ACTS} 幕，每幕生成 {MAX_FLOOR} 层路线：自选路径前进，途经普通/精英敌人、补给营地、商店与幸运事件，所有路线最终汇聚本幕 BOSS。击败本幕 BOSS 进入下一幕并回满生命，打通终幕才算登顶。
+              共 {TOTAL_ACTS} 幕，每幕生成 {MAX_FLOOR} 层路线：自选路径前进，途经普通/精英敌人、补给营地、商店、幸运事件与封印石门（踏入的那一刻才揭晓里面是什么），所有路线最终汇聚本幕 BOSS。击败本幕 BOSS 进入下一幕并回满生命，打通终幕才算登顶。
             </div>
           </div>
           <div className="mt-4 text-[11px] text-zinc-500">状态说明：💪力量 提升攻击 · 🌀虚弱 造成伤害 -25% · 🎯易伤 受到伤害 +50%</div>

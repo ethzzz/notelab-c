@@ -2,6 +2,12 @@
 // 数据驱动设计：卡牌由 CardEffect 效果列表组成（可自定义增改），角色带被动/主动技能，
 // 技能与被动通过触发时机钩子（全局生效 / 打出卡片 / 回合开始）作用于效果数值，方便后续拓展。
 
+// 地图生成规则（类型权重 / 最小层数 / 揭示池 / 最大列数 / 路径条数）全部来自素材包随附的
+// map-gen.config.json —— 调平衡改 JSON，不要在这里写魔数，避免两份真相各自漂移。
+// 路径之所以指向 public/：素材包要求「配置 + manifest + 样例 + 素材」同目录自包含，
+// 另存副本就会漂移，所以宁可让代码从 public 里取。
+import MAP_GEN from "@/public/spire/map-gen.config.json"
+
 // ---------------- 卡牌效果系统 ----------------
 export type CardCategory = "attack" | "defense" | "buff" | "special"
 
@@ -387,11 +393,24 @@ const ENEMIES: EnemyDef[] = [
 /** act-clear = 中途幕 BOSS 已击败、等待进入下一幕的幕间整备界面 */
 export type Phase = "map" | "combat" | "reward" | "rest" | "shop" | "event" | "act-clear" | "over" | "win"
 
-// ---------------- 地图：随机 DAG 路线图，所有路径汇聚于 BOSS ----------------
-export type NodeType = "enemy" | "elite" | "boss" | "rest" | "shop" | "event"
-export interface MapNode { id: string; row: number; col: number; type: NodeType; next: string[] }
-export interface SpireMap { nodes: MapNode[] }
-export const MAP_ROWS = 7
+// ---------------- 地图：纺锤形随机 DAG，所有路径汇聚于 BOSS ----------------
+/**
+ * random = **未揭示**节点：踏入那一刻才按揭示池 roll 出真实类型（见 revealRandomNode）。
+ * 它和 event 是两个不同的东西，别合并：event 进节点直接触发事件内容，
+ * random 是"这一格到底是什么还不知道"，揭示后才分流到战斗/商店/营地。
+ */
+export type NodeType = "enemy" | "elite" | "boss" | "rest" | "shop" | "event" | "random"
+export interface MapNode {
+  id: string; row: number; col: number; type: NodeType; next: string[]
+  /** 仅 random 节点使用：踏入后揭示出的真实类型。写进状态，重渲染/读档都不会再 roll 一次 */
+  revealedType?: NodeType
+}
+export interface SpireMap { nodes: MapNode[]; layers: number }
+/**
+ * 每幕层数。**层数由前端写死在这里**，generateMap 只把它当参数消费——
+ * 素材包 map-gen.config.json 里的 layers:16 是结构 demo，不是本项目的层数来源。
+ */
+export const MAP_ROWS = 16
 /** 幕数：每一幕一张独立地图、顶端一个专属 BOSS；只有打完最后一幕的 BOSS 才算通关 */
 export const TOTAL_ACTS = 3
 /** 各幕 BOSS（下标 = 幕序 - 1）；取不到时回退到最后一幕的 BOSS */
@@ -404,14 +423,26 @@ export const ACT_BOSS_IDS = ["king", "jadeGolem", "spireLord"]
 export const actScale = (act: number) => 1 + (Math.max(1, act) - 1) * 0.3
 /** 综合进度（跨幕），用于最佳纪录 —— 避免多幕后只记层数导致语义错乱；兼容旧值（层数） */
 export const runDepth = (s: { act: number; floor: number }) => (s.act - 1) * MAP_ROWS + s.floor
-export const NODE_META: Record<NodeType, { icon: string; name: string }> = {
-  enemy: { icon: "⚔️", name: "普通敌人" },
-  elite: { icon: "👹", name: "精英敌人" },
-  boss: { icon: "👑", name: "BOSS" },
-  rest: { icon: "🔥", name: "补给营地" },
-  shop: { icon: "🛒", name: "商店" },
-  event: { icon: "❓", name: "未知事件" },
+/**
+ * 节点形象。sprite = 素材包 public/spire/svg/ 下的图标（**必须带 basePath 前缀 `/games`**，
+ * 与 spire-audio 的 SOUND_DIR 同一套约定）；null = 素材包没有对应图标，沿用 SpireMap 的自绘线性图标。
+ * icon 字段是历史遗留的 emoji，当前已无人引用，仅为兼容保留。
+ */
+export const NODE_META: Record<NodeType, { icon: string; name: string; sprite: string | null }> = {
+  enemy:  { icon: "⚔️", name: "普通敌人", sprite: "/games/spire/svg/icon-normal.svg" },
+  elite:  { icon: "👹", name: "精英敌人", sprite: "/games/spire/svg/icon-elite.svg" },
+  boss:   { icon: "👑", name: "BOSS",     sprite: "/games/spire/svg/icon-boss.svg" },
+  rest:   { icon: "🔥", name: "补给营地", sprite: "/games/spire/svg/icon-rest.svg" },
+  shop:   { icon: "🛒", name: "商店",     sprite: "/games/spire/svg/icon-shop.svg" },
+  random: { icon: "❓", name: "未知",     sprite: "/games/spire/svg/icon-random.svg" },
+  // 素材包没有「事件」图标。若让 event 也指向 icon-random.svg，会和未揭示节点完全撞脸，
+  // 玩家无法区分"进去触发事件"和"进去才知道是什么"，故 event 沿用自绘问号
+  event:  { icon: "❓", name: "未知事件", sprite: null },
 }
+
+/** 节点对外的有效类型：random 未揭示时就是 random，揭示后按 revealedType 走（决定图标与结算） */
+export const nodeTypeOf = (n: MapNode): NodeType =>
+  n.type === "random" ? (n.revealedType ?? "random") : n.type
 
 // ---------------- 药水 ----------------
 export type PotionKind = "heal" | "block" | "energy" | "str"
@@ -511,7 +542,7 @@ export function newRun(charId = "blade"): RunState {
     floor: 0, maxFloor: MAP_ROWS,
     hp: ch.maxHp, maxHp: ch.maxHp, gold: 60,
     deck: [],
-    map: generateMap(), pos: null, visited: [], potions: [], eventResult: null,
+    map: generateMap(MAP_ROWS), pos: null, visited: [], potions: [], eventResult: null,
     draw: [], hand: [], discard: [],
     energy: 3, block: 0, str: 0, tempStr: 0,
     weak: 0, vuln: 0, turn: 1,
@@ -528,37 +559,169 @@ export function newRun(charId = "blade"): RunState {
   return s
 }
 
-// ---------------- 地图生成：随机 DAG，所有路线最终汇聚 BOSS ----------------
-export function generateMap(): SpireMap {
-  const nodes: MapNode[] = []
-  const cols: number[] = [3]
-  for (let r = 1; r < MAP_ROWS - 1; r++) cols.push(2 + rnd(3)) // 中间行 2~4 个节点
-  cols.push(1)
-  for (let r = 0; r < MAP_ROWS; r++) {
-    for (let c = 0; c < cols[r]; c++) nodes.push({ id: `r${r}c${c}`, row: r, col: c, type: "enemy", next: [] })
+// ---------------- 地图生成：纺锤形随机 DAG，所有路线最终汇聚 BOSS ----------------
+// 规则来源 public/spire/map-gen.config.json：数值取配置，硬约束逐条在下面实现。
+// 与旧实现（每层随机 2~4 列 + 随机连边，靠事后补救）的关键差别：
+// 新实现**从构造上**就保证同层不交叉、无死路、无孤立节点，不依赖"生成完再修"。
+
+/** 参与权重 roll 的类型（boss 由末层固定放置，不参与） */
+type RollType = Extract<NodeType, "enemy" | "elite" | "rest" | "shop" | "random" | "event">
+const ROLL_TYPES: RollType[] = ["enemy", "elite", "shop", "rest", "random", "event"]
+/**
+ * 权重：前五项直接取配置（配置里「普通小怪」叫 normal，本引擎沿用历史命名 enemy）。
+ * event 是**项目扩展** —— 配置原版没有它（只有 random），但本作已有 6 个事件与一整套结算界面，
+ * 按「random 与 event 并存」的决定让它独立参与各层 roll，权重取与 shop 同档。
+ */
+const EVENT_WEIGHT = 12
+const WEIGHT: Record<RollType, number> = {
+  enemy: MAP_GEN.nodeTypes.normal.weight,
+  elite: MAP_GEN.nodeTypes.elite.weight,
+  shop: MAP_GEN.nodeTypes.shop.weight,
+  rest: MAP_GEN.nodeTypes.rest.weight,
+  random: MAP_GEN.nodeTypes.random.weight,
+  event: EVENT_WEIGHT,
+}
+/** 最小层数（配置 constraints：elite ≥ 3，shop / rest ≥ 2） */
+const MIN_LAYER: Record<RollType, number> = {
+  enemy: MAP_GEN.nodeTypes.normal.minLayer,
+  elite: MAP_GEN.nodeTypes.elite.minLayer,
+  shop: MAP_GEN.nodeTypes.shop.minLayer,
+  rest: MAP_GEN.nodeTypes.rest.minLayer,
+  random: MAP_GEN.nodeTypes.random.minLayer,
+  event: 2, // 与 shop / rest 同档：事件同样给资源，不该出现在开局两层
+}
+const weightedPick = <T,>(list: T[], w: (t: T) => number): T => {
+  let total = 0
+  for (const t of list) total += w(t)
+  let x = rnd(Math.max(1, total))
+  for (const t of list) { x -= w(t); if (x < 0) return t }
+  return list[list.length - 1]
+}
+/** 按权重抽类型；ban 用于叠加「开局两层只允许普通 / 未揭示」这类按层的局部限制 */
+function rollType(layer: number, ban?: (t: RollType) => boolean): RollType {
+  const pool = ROLL_TYPES.filter((t) => layer >= MIN_LAYER[t] && !ban?.(t))
+  // 兜底：约束叠加到没有候选时退化为普通敌人，绝不抛错
+  return weightedPick(pool.length > 0 ? pool : (["enemy"] as RollType[]), (t) => WEIGHT[t])
+}
+
+export function generateMap(layers: number = MAP_ROWS): SpireMap {
+  const L = Math.max(4, layers | 0)
+  const maxCol = Math.max(2, MAP_GEN.map.maxColumns)
+  const [pcLo, pcHi] = MAP_GEN.map.pathCount
+  // pathCount（配置 4~6）= 并行主干条数，这里用于决定纺锤最宽处宽度，再被 maxColumns 夹住。
+  // ⚠️ 当前 maxColumns=4 会把 4~6 全夹成 4，这个区间暂时看不出差别；
+  // 想让 5~6 条主干真正生效，需要同时放开配置里的 maxColumns。
+  const peak = Math.min(maxCol, Math.max(2, pcLo + rnd(pcHi - pcLo + 1)))
+
+  // ---- 1) 纺锤形铺层：第 0 层单入口、末层单 BOSS，中间按 sin 曲线先变宽后收窄 ----
+  const counts: number[] = []
+  for (let r = 0; r < L; r++) {
+    if (r === 0 || r === L - 1) { counts.push(1); continue }
+    const t = r / (L - 1)
+    counts.push(Math.max(1, Math.min(peak, 1 + Math.round((peak - 1) * Math.sin(Math.PI * t)))))
   }
-  const rowOf = (r: number) => nodes.filter((n) => n.row === r)
-  // 特殊节点：商店×2(rows1-4) / 补给×2(rows2-5) / 事件×2(rows1-5) / 精英×1(rows3-5)，其余默认普通敌人
-  const assign = (row: number, type: NodeType) => {
-    const cands = rowOf(row).filter((n) => n.type === "enemy")
-    if (cands.length > 0) cands[rnd(cands.length)].type = type
-  }
-  assign(1 + rnd(4), "shop"); assign(1 + rnd(4), "shop")
-  assign(2 + rnd(4), "rest"); assign(2 + rnd(4), "rest")
-  assign(1 + rnd(5), "event"); assign(1 + rnd(5), "event")
-  assign(3 + rnd(3), "elite")
-  nodes[nodes.length - 1].type = "boss"
-  // 边：每节点连下一行 1~2 个，并保证下一行每个节点至少一条入边（任何路线都能走到 BOSS）
-  for (let r = 0; r < MAP_ROWS - 1; r++) {
-    const cur = rowOf(r), nxt = rowOf(r + 1)
-    const hasIn = new Set<string>()
-    for (const n of cur) {
-      const picks = shuffle(nxt.slice()).slice(0, Math.min(nxt.length, 1 + rnd(2)))
-      for (const p of picks) { n.next.push(p.id); hasIn.add(p.id) }
+  // 曲线本身是确定性的，不抖动的话每张图的骨架完全一样（节点数恒定、层宽序列恒定），
+  // 只有连线和类型在变 —— 玩起来像同一张图。这里给中间层做 ±1 抖动，
+  // 连边构造对任意 (m,n) 都成立，所以宽度怎么抖都不会破坏不交叉 / 无死路。
+  for (let r = 1; r < L - 1; r++) {
+    if (Math.random() < 0.4) {
+      counts[r] = Math.max(1, Math.min(peak, counts[r] + (Math.random() < 0.5 ? -1 : 1)))
     }
-    for (const p of nxt) if (!hasIn.has(p.id)) cur[rnd(cur.length)].next.push(p.id)
   }
-  return { nodes }
+
+  // ---- 2) 建节点 ----
+  const nodes: MapNode[] = []
+  const ids: string[][] = []
+  for (let r = 0; r < L; r++) {
+    ids.push([])
+    for (let c = 0; c < counts[r]; c++) {
+      const id = `r${r}c${c}`
+      ids[r].push(id)
+      nodes.push({ id, row: r, col: c, type: "enemy", next: [] })
+    }
+  }
+  const byId = new Map(nodes.map((n) => [n.id, n] as const))
+
+  // ---- 3) 连边：不交叉 + 全覆盖 + 无死路 ----
+  // 核心构造：把下一层的 n 个节点按列切成 m 段**互不重叠且递增**的连续块，第 i 个源独占第 i 段：
+  //   lo_i = floor(i·n/m)，hi_i = max(lo_i, floor((i+1)·n/m) − 1)
+  // 于是天然成立 —— 不交叉（a<c ⇒ b<=d）、无死路（每段非空 ⇒ 每个源都有出边）、
+  // 全覆盖（各段拼起来正好覆盖 0..n−1 ⇒ 每个目标都有入边）。
+  for (let r = 0; r < L - 1; r++) {
+    const m = counts[r], n = counts[r + 1]
+    const lo = (i: number) => Math.floor((i * n) / m)
+    const hi = (i: number) => Math.max(lo(i), Math.floor(((i + 1) * n) / m) - 1)
+    const sets: Set<number>[] = Array.from({ length: m }, () => new Set<number>())
+    for (let i = 0; i < m; i++) for (let j = lo(i); j <= hi(i); j++) sets[i].add(j)
+    // 抖动：补一条斜边，让路线有分叉而不是整齐的梯子。
+    // 候选区间被两端夹住 —— 下界 hi(i−1) 保证不越过前一个源的最大目标，
+    // 上界 upper 保证不越过后一个源的最小目标；必须**从后往前**推进才能一次把 upper 定死。
+    let upper = n - 1
+    for (let i = m - 1; i >= 0; i--) {
+      const low = i > 0 ? hi(i - 1) : 0
+      const cand: number[] = []
+      for (let j = low; j <= upper; j++) if (!sets[i].has(j)) cand.push(j)
+      if (cand.length > 0 && Math.random() < 0.6) sets[i].add(cand[rnd(cand.length)])
+      upper = Math.min(upper, ...Array.from(sets[i]))
+    }
+    for (let i = 0; i < m; i++) {
+      const src = byId.get(ids[r][i])!
+      for (const j of [...sets[i]].sort((a, b) => a - b)) src.next.push(ids[r + 1][j])
+    }
+  }
+
+  // ---- 4) 类型：按权重 roll，再逐条套硬约束 ----
+  /** 入口 / BOSS 前一层 / BOSS 层这三行的类型是定死的，冲突时不能拿来重 roll */
+  const fixedRow = (r: number) => r === 0 || r === L - 2 || r === L - 1
+  for (const n of nodes) {
+    if (n.row === 0) { n.type = "enemy"; continue }      // 入口固定普通（配置 entrance）
+    if (n.row === L - 1) { n.type = "boss"; continue }   // 末层单 BOSS
+    if (n.row === L - 2) { n.type = "rest"; continue }   // BOSS 前一层强制补给：最后的回复窗口
+    // 开局两层只允许普通 / 未揭示（配置 early-tiers-safe），避免一上来撞精英
+    const ban = n.row < 2 ? (t: RollType) => t !== "enemy" && t !== "random" : undefined
+    n.type = rollType(n.row, ban)
+  }
+  // 商店与营地不得被同一条边直连（配置 shop-rest-not-adjacent）：
+  // 冲突时重 roll **可变的那一端**（上面三行是定死的），且排除 shop / rest 本身，兜底退化为普通敌人
+  for (let pass = 0; pass < 12; pass++) {
+    let changed = 0
+    for (const n of nodes) {
+      for (const id of n.next) {
+        const m = byId.get(id)!
+        const bad = (n.type === "shop" && m.type === "rest") || (n.type === "rest" && m.type === "shop")
+        if (!bad) continue
+        const target = !fixedRow(m.row) ? m : !fixedRow(n.row) ? n : null
+        if (!target) continue
+        target.type = rollType(target.row, (t) =>
+          t === "shop" || t === "rest" || (target.row < 2 && t !== "enemy" && t !== "random"))
+        changed++
+      }
+    }
+    if (changed === 0) break
+  }
+  return { nodes, layers: L }
+}
+
+/**
+ * 未揭示节点：踏入的那一刻才 roll 真实类型。
+ * 揭示池取配置 randomNode.revealPool（normal / elite / shop / rest，不含 random 自身 ——
+ * 不会揭示成另一个未揭示节点）。
+ * ⚠️ 比配置多一道过滤：揭示结果同样要满足 minLayer，否则「开局两层只给低强度节点」
+ * 会被一个第 1 层的未揭示节点绕过去。结果写进 revealedType，之后渲染与结算都按它走。
+ */
+export function revealRandomNode(n: MapNode): NodeType {
+  const pool: [NodeType, number][] = [
+    ["enemy", MAP_GEN.randomNode.revealPool.normal],
+    ["elite", MAP_GEN.randomNode.revealPool.elite],
+    ["shop", MAP_GEN.randomNode.revealPool.shop],
+    ["rest", MAP_GEN.randomNode.revealPool.rest],
+  ].filter(([t]) => n.row >= MIN_LAYER[t as RollType])
+  const picked = weightedPick(
+    pool.length > 0 ? pool : ([["enemy", 1]] as [NodeType, number][]),
+    ([, w]) => w,
+  )[0]
+  n.revealedType = picked
+  return picked
 }
 
 export function nodeById(s: RunState, id: string): MapNode | undefined {
@@ -571,10 +734,12 @@ export function reachableIds(s: RunState): string[] {
   return nodeById(s, s.pos)?.next.slice() ?? []
 }
 
-/** 按行分组的地图节点（第 0 行在前，供 UI 渲染） */
+/** 按行分组的地图节点（第 0 行在前，供 UI 渲染）。行数按实际数据取，兼容自定义层数 */
 export function mapRows(s: RunState): MapNode[][] {
-  const rows: MapNode[][] = Array.from({ length: MAP_ROWS }, () => [])
-  for (const n of s.map.nodes) rows[n.row].push(n)
+  let n = Math.max(1, s.maxFloor)
+  for (const x of s.map.nodes) if (x.row + 1 > n) n = x.row + 1
+  const rows: MapNode[][] = Array.from({ length: n }, () => [])
+  for (const x of s.map.nodes) rows[x.row]?.push(x)
   for (const r of rows) r.sort((a, b) => a.col - b.col)
   return rows
 }
@@ -588,10 +753,17 @@ export function enterNode(s: RunState, id: string): FxEvent[] {
   s.pos = id
   s.visited.push(id)
   s.floor = node.row + 1
-  if (node.type === "rest") { s.phase = "rest"; log(s, `—— 补给营地（第 ${s.act} 幕 · ${s.floor}/${MAP_ROWS} 层）——`); return fx }
-  if (node.type === "shop") { openShop(s); return fx }
-  if (node.type === "event") { resolveEvent(s); return fx }
-  startCombat(s, node.type)
+  // 未揭示节点：踏入的这一刻才揭晓类型，结果写回节点（之后渲染与结算都按它走，不会再 roll）
+  let eff: NodeType = nodeTypeOf(node)
+  if (node.type === "random" && !node.revealedType) {
+    revealRandomNode(node)
+    eff = nodeTypeOf(node)
+    log(s, `封印石门开启 —— 揭示为【${NODE_META[eff].name}】`)
+  }
+  if (eff === "rest") { s.phase = "rest"; log(s, `—— 补给营地（第 ${s.act} 幕 · ${s.floor}/${s.maxFloor} 层）——`); return fx }
+  if (eff === "shop") { openShop(s); return fx }
+  if (eff === "event") { resolveEvent(s); return fx }
+  startCombat(s, eff)
   return fx
 }
 
@@ -918,7 +1090,7 @@ function enterNextAct(s: RunState) {
   s.lastActKills = s.actKills
   s.actKills = 0
   s.act++
-  s.map = generateMap()
+  s.map = generateMap(s.maxFloor)
   s.pos = null
   s.visited = []
   s.floor = 0
@@ -1095,7 +1267,7 @@ function openShop(s: RunState) {
   const kinds = shuffle(Object.keys(POTION_DEFS) as PotionKind[]).slice(0, 2)
   for (const kind of kinds) s.shopPotions.push({ kind, price: 35 })
   s.phase = "shop"
-  log(s, `—— 商店（第 ${s.act} 幕 · ${s.floor}/${MAP_ROWS} 层）：出售卡牌与药水 ——`)
+  log(s, `—— 商店（第 ${s.act} 幕 · ${s.floor}/${s.maxFloor} 层）：出售卡牌与药水 ——`)
 }
 
 export function buyPotion(s: RunState, idx: number) {
