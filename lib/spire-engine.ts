@@ -710,12 +710,13 @@ export function generateMap(layers: number = MAP_ROWS): SpireMap {
  * 会被一个第 1 层的未揭示节点绕过去。结果写进 revealedType，之后渲染与结算都按它走。
  */
 export function revealRandomNode(n: MapNode): NodeType {
-  const pool: [NodeType, number][] = [
+  // 元组字面量必须显式断言，否则 TS 会放宽成 (string|number)[][] 而编译失败
+  const pool: [NodeType, number][] = ([
     ["enemy", MAP_GEN.randomNode.revealPool.normal],
     ["elite", MAP_GEN.randomNode.revealPool.elite],
     ["shop", MAP_GEN.randomNode.revealPool.shop],
     ["rest", MAP_GEN.randomNode.revealPool.rest],
-  ].filter(([t]) => n.row >= MIN_LAYER[t as RollType])
+  ] as [NodeType, number][]).filter(([t]) => n.row >= MIN_LAYER[t as RollType])
   const picked = weightedPick(
     pool.length > 0 ? pool : ([["enemy", 1]] as [NodeType, number][]),
     ([, w]) => w,
