@@ -63,8 +63,10 @@ cd /root/notelab-c && npm run build && pm2 restart notelab-c
   - 已知坑：包裹层 flex 居中 + 子元素 `width:100%` → 解析成 **0 宽**（截图只剩一条 1px 竖线）；`--screenshot` 会早于 JS 注入内容 → 先 `--dump-dom > page.static.html` 固化再截。
   - 方法与"用 canvas 复现渐变、量横向亮度跳变来证明硬边消失"的技巧，见技能 `artwork-preview` 的「真浏览器路线」。
 - **Tailwind 裸数值类会静默失效**：`opacity-55` / `opacity-60` 在 v4 里**确实会生成**，但务必核一次——
-  `grep -rho '\.opacity-6[05]{[^}]*}' .next/static/chunks/*.css`。类若没生成，元素保持 `opacity:1`，**不报错**。
-  注意 CSS 产物在 `.next/static/chunks/*.css`，**没有** `.next/static/css/` 这个目录。
+  `grep -rho '\.opacity-[0-9]*{[^}]*}' .next/static/chunks/*.css | sort -u`。
+  类若没生成，元素保持 `opacity:1`，**不报错**。注意 CSS 产物在 `.next/static/chunks/*.css`，**没有** `.next/static/css/` 这个目录。
+  - ⚠️ 别把正则写成 `opacity-6[05]` 这种"按十位分组"的形式：它匹配不到 `opacity-55`，会让你误判成"类没生成"。
+    用上面的全量 `opacity-[0-9]*` 一次列全最稳。
 
 ## ⚠️ 本仓没有测试脚本
 
