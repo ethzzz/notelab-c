@@ -35,9 +35,9 @@ interface ActTheme {
   spine: string                     // 中轴塔身光柱
 }
 const ACT_THEMES: ActTheme[] = [
-  { name: "苔石回廊", accent: "#d8b878", trail: "rgba(200,170,110,.55)", bgTop: "#15161c", bgBottom: "#0d0e12", spine: "rgba(216,184,120,.05)" },
-  { name: "青玉回廊", accent: "#7fd8c0", trail: "rgba(120,200,180,.5)", bgTop: "#111a19", bgBottom: "#0a1211", spine: "rgba(127,216,192,.05)" },
-  { name: "赤色尖顶", accent: "#e58a9a", trail: "rgba(220,120,140,.5)", bgTop: "#1a1218", bgBottom: "#100a0f", spine: "rgba(229,138,154,.055)" },
+  { name: "苔石回廊", accent: "#e2c486", trail: "rgba(214,184,126,.68)", bgTop: "#25272f", bgBottom: "#1b1d24", spine: "rgba(216,184,120,.09)" },
+  { name: "青玉回廊", accent: "#91e5cb", trail: "rgba(137,219,194,.66)", bgTop: "#202e2b", bgBottom: "#17221f", spine: "rgba(127,216,192,.09)" },
+  { name: "赤色尖顶", accent: "#f09cab", trail: "rgba(230,148,163,.68)", bgTop: "#2a1e25", bgBottom: "#21171d", spine: "rgba(229,138,154,.09)" },
 ]
 const themeOf = (act: number) => ACT_THEMES[Math.min(Math.max(act, 1), ACT_THEMES.length) - 1]
 /** 幕名（幕间界面等处引用，保证与地图主题同一真相源） */
@@ -47,9 +47,17 @@ export const actAccent = (act: number) => themeOf(act).accent
 
 // 圆盘底面：径向渐变（上亮下暗）做出球面体积。**只给没有素材包整图的类型用**（现在只有 event）——
 // 有整图的类型由画面自带的石质外环 + 烟雾承担底框，不再垫这一层（垫了会变成"球里贴了张画"）。
-// 最外圈必须比三幕底色（#15161c / #111a19 / #1a1218）都亮 —— 原先外圈 #12141a 比幕1、幕3 的底色还暗，
-// 圆盘因此看起来像"洞"、与背景糊在一起；同时整体提一档亮度，让节点真正从底色里立起来
-const DISC_BG = "radial-gradient(circle at 50% 30%, #3e4553 0%, #272c37 58%, #1e222c 100%)"
+//
+// ⚠️ 硬约束：**最外圈必须比三幕底色亮**。圆盘落在地图纵向渐变的中上段，那里底色最亮
+// （bgTop 亮度：幕1 #25272f = 2.05e-2 / 幕2 #202e2b = 2.44e-2 / 幕3 #2a1e25 = 1.55e-2）。
+// 外圈一旦比它们暗，圆盘边缘就与背景糊在一起、读作一个凹陷的"洞"。
+//
+// 来路：2026-09-26 三幕底色整体提亮后，旧外圈 #1e222c（L=1.60e-2）跌破底色，最不利处
+// 「外圈/底」= 0.818 / 0.686 / 1.084 —— 前两幕已踩线（对照图 .sync/disc-hole-check.png）。
+// 整档上移到下面这组后：1.809 / 1.518 / 2.399，最不利处仍留 ~1.5 倍余量，且中心→外圈
+// 8.37e-2 → 3.54e-2 保留球面渐变（不是平涂）。
+// **以后再调 ACT_THEMES 的 bgTop/bgBottom，必须回来复算这条：比值 < 1 就是洞。**
+const DISC_BG = "radial-gradient(circle at 50% 30%, #4a5262 0%, #3a4150 58%, #2f3542 100%)"
 // 中轴光柱的横向羽化遮罩：中段实、两端渐隐。
 // 光柱若只有竖向渐变，左右两侧就是硬边，在深底上会显出一整块矩形色差（截图里"背景中间那块色差"）
 const SPINE_FADE = "linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 26%, rgba(0,0,0,.78) 44%, #000 50%, rgba(0,0,0,.78) 56%, rgba(0,0,0,.28) 74%, transparent 100%)"
@@ -413,7 +421,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
         />
         <div
           className="pointer-events-none absolute inset-0"
-          style={{ boxShadow: "inset 0 0 110px 10px rgba(0,0,0,.42)", borderRadius: "1rem" }}
+          style={{ boxShadow: "inset 0 0 110px 10px rgba(0,0,0,.30)", borderRadius: "1rem" }}
         />
 
         {/* 幕标识（右上角，极淡） */}
@@ -433,7 +441,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                 right: compact ? 8 : 24,
                 top: rowTop(r) + ROW_H / 2,
                 height: 1,
-                background: "rgba(255,255,255,.028)",
+                background: "rgba(255,255,255,.05)",
               }}
             />
           ))}
@@ -445,7 +453,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
         </div>
         <span
           className="pointer-events-none absolute tracking-[.24em]"
-          style={{ right: compact ? 8 : 20, top: bossRowBottom + 4, fontSize: compact ? 9 : 10, color: "rgba(255,255,255,.22)" }}
+          style={{ right: compact ? 8 : 20, top: bossRowBottom + 4, fontSize: compact ? 9 : 10, color: "rgba(255,255,255,.34)" }}
         >
           TOP
         </span>
@@ -537,8 +545,8 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
               : can
               ? "cursor-pointer"
               : done
-              ? "opacity-[0.66] grayscale-[.4]"
-              : "opacity-[0.7]"
+              ? "opacity-[0.76] grayscale-[.4]"
+              : "opacity-[0.82]"
             // 外层 span 只做两件事：给当前节点挂亮环 + 供连线测中心点（只看中心，与直径无关）。
             // 节点形象（整图 / 圆盘）全部由 NodeArt 画，故这里不再设底与描边
             const discShadow = isCur
@@ -615,7 +623,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           徽章必须跟盘面上的节点用同一份 NodeArt（同一套 ART_FILL 归一化）——
           换成矢量线描会和盘面上的"画"对不上号（比如线描的精英是双剑，盘面上却是带角魔颅） */}
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px]"
-        style={{ color: "rgba(255,255,255,.45)" }}>
+        style={{ color: "rgba(255,255,255,.58)" }}>
         {(["enemy", "elite", "rest", "shop", "event", "random", "boss"] as NodeType[]).map((t) => (
           <span key={t} className="flex items-center gap-2">
             {/* 徽章槽位按最长的那张整图留（随机 0.916 这类接近满画布的除外，它们反而更窄） */}
