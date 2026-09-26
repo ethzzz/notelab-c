@@ -76,12 +76,18 @@ ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
   ```
   两条纪律：① **先让对照页复现已知缺陷**，复现不了就说明样式抄错了，此时"改后好看"没有意义；② 对照页只证明"这几条样式改对了"，**不等于**真实页面已对（父级背景、层叠、暗色变量都没覆盖）。
   - 已知坑：包裹层 flex 居中 + 子元素 `width:100%` → 解析成 **0 宽**（截图只剩一条 1px 竖线）；`--screenshot` 会早于 JS 注入内容 → 先 `--dump-dom > page.static.html` 固化再截。
+  - **三个必填参数**（缺任一个都可能静默失败）：`--screenshot=` 用**绝对路径**（写相对路径会以 `拒绝访问 (0x5)` 失败——headless 的 cwd 不是你的 cwd）；`--user-data-dir=` 显式给一个可写目录（用完删掉，会留几十 MB）；`--virtual-time-budget` 给图片/字体加载留时间（不给会截到破图占位符，很容易误判成"路径写错了"）。
+  - 对照页里**绝对定位的图层必须显式给 `left/top` + `transform: translate(-50%,-50%)`**；只写 `position:absolute` 会全部塌到 static 位置叠成一团，看起来像"渲染坏了"。
+  - **改配色/透明度时，对照页要三列**：`改前配色+改前取值`（基准）/ `改后配色+改前取值`（问题现场）/ `改后配色+修正取值`（修复）。另加一条**切在边界上**的放大条（左半前景内部、右半背景）——只放大中心没用，中心永远是最亮的地方。
+  - **背景是渐变的，"必须比底色亮"这类不变量要在「最不利位置」算**：先从布局常量算出容器高与节点中心的 y 序列，只在元素真的会出现的那些 y 上取背景色算比值、取最小值（最亮的危险区常在中间某行，只比 `bgTop`/`bgBottom` 端点会漏）。亮度用 WCAG 相对亮度线性化，别用 `(r+g+b)/3`。
   - 方法与"用 canvas 复现渐变、量横向亮度跳变来证明硬边消失"的技巧，见技能 `artwork-preview` 的「真浏览器路线」。
 - **Tailwind 裸数值类会静默失效**：`opacity-55` / `opacity-60` 在 v4 里**确实会生成**，但务必核一次——
   `grep -rho '\.opacity-[0-9]*{[^}]*}' .next/static/chunks/*.css | sort -u`。
   类若没生成，元素保持 `opacity:1`，**不报错**。注意 CSS 产物在 `.next/static/chunks/*.css`，**没有** `.next/static/css/` 这个目录。
   - ⚠️ 别把正则写成 `opacity-6[05]` 这种"按十位分组"的形式：它匹配不到 `opacity-55`，会让你误判成"类没生成"。
     用上面的全量 `opacity-[0-9]*` 一次列全最稳。
+  - ⚠️ **带 `[]` 的任意值类不能用正则或 `grep` 搜**：`opacity-[0.76]` 在 CSS 里写作 `.opacity-\[0\.76\]`，**反斜杠是字面量**，正则中要写成 `\\\\`，在 shell 里几乎必然转义错——结果只匹配到 `--tw-grayscale:initial` 这类变量声明，从而**误判"类没生成"**（`.grayscale-[.4]` 与 `.opacity-[0.76]` 各踩过一次）。
+    做法：`scp` 线上 `.next/static/chunks/*.css` 回本地，用 Python **纯子串查找**——`css.find(r".opacity-\[0\.76\]")`，找到后打印到 `}` 看规则体；顺带确认**旧类已被 tree-shake 移除**（不再被引用就该消失，否则可能核的是错的那份产物）。
 
 ## ⚠️ 本仓没有测试脚本
 
@@ -108,6 +114,11 @@ ssh myapp "node /tmp/verify/verify-mapgen.js /tmp/verify/spire-engine.ts /tmp/ve
 `npx tsc --noEmit` 在本仓输出干净、没有 notelab-b 那种「引用已删页面的陈旧 `.next/types`」噪音，
 所以**可以把服务器上的 `npx tsc --noEmit` 当部署前预检**：scp 改动文件进 `/root/notelab-c` → tsc → `git checkout -- <file>` 还原 → 再 push。
 两个仓的这条结论**不能混用**。
+
+⚠️ 但它**只能在服务器上跑**：本仓本地 `node_modules` 是空的（不做本地安装），
+而 `npx tsc` 一旦找不到 typescript，会去下**同名假包 `tsc@2.0.4`**（2015 年的空壳），
+它打印「This is not the tsc command you are looking for」却**返回退出码 0** —— 典型的**假绿**，
+千万别当类型检查通过。识别方法：看有没有 `npm warn exec The following package was not found` 这行。
 
 ## 纪律与禁区
 - **测试账号凭据在 `account.json`**（字段 `account` / `password`），已入 `.gitignore`。需要登录态做验收时读该文件登录；**严禁**把明文写进代码、文档或提交进仓库。
