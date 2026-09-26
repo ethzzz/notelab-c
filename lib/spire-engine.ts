@@ -421,7 +421,12 @@ export const ACT_BOSS_IDS = ["king", "jadeGolem", "spireLord"]
  * 数值取舍：让三幕 BOSS 的实际血量落在 ~180 / ~290 / ~435，终幕需要认真构筑才打得过。
  */
 export const actScale = (act: number) => 1 + (Math.max(1, act) - 1) * 0.3
-/** 综合进度（跨幕），用于最佳纪录 —— 避免多幕后只记层数导致语义错乱；兼容旧值（层数） */
+/**
+ * 综合进度（跨幕），用于最佳纪录 —— 避免多幕后只记层数导致语义错乱；兼容旧值（层数）。
+ * ⚠️ 换算基数是 MAP_ROWS 常量，不是 `s.maxFloor`：已发布地图若换了层数，
+ * 这里的档位与页面上的「第 N/M 层」会不一致（纪录条显示的是旧基数下的档位）。
+ * 刻意不改：改基数会让所有历史 best 值（localStorage `spire-best`）口径突变。
+ */
 export const runDepth = (s: { act: number; floor: number }) => (s.act - 1) * MAP_ROWS + s.floor
 /**
  * 节点形象。art = 素材包 `public/spire/art/` 下的**整幅圆形美术**（路径**必须带 basePath 前缀 `/games`**，
@@ -536,14 +541,17 @@ function log(s: RunState, msg: string) {
 // ---------------- 开局 ----------------
 export function newRun(charId = "blade"): RunState {
   const ch = CHARACTERS.find((c) => c.id === charId) || CHARACTERS[0]
+  // 第 1 幕优先取已发布配置；没有（或未注入 provider）就本地生成
+  const map = mapForAct(1, MAP_ROWS)
   const s: RunState = {
     phase: "map",
     charId: ch.id,
     act: 1, totalActs: TOTAL_ACTS,
-    floor: 0, maxFloor: MAP_ROWS,
+    // 幕内层数以**实际用的那张图**为准：已发布的图可以与 MAP_ROWS 不同层数
+    floor: 0, maxFloor: map.layers,
     hp: ch.maxHp, maxHp: ch.maxHp, gold: 60,
     deck: [],
-    map: generateMap(MAP_ROWS), pos: null, visited: [], potions: [], eventResult: null,
+    map, pos: null, visited: [], potions: [], eventResult: null,
     draw: [], hand: [], discard: [],
     energy: 3, block: 0, str: 0, tempStr: 0,
     weak: 0, vuln: 0, turn: 1,
@@ -701,6 +709,31 @@ export function generateMap(layers: number = MAP_ROWS): SpireMap {
     if (changed === 0) break
   }
   return { nodes, layers: L }
+}
+
+// ---------------- 已发布地图（B 端生成 → 发布 → C 端消费） ----------------
+/**
+ * 取用口由页面注入（见 lib/spire-maps.ts 的 makePublishedMapProvider）。
+ * 返回 null = 「该幕没有可用的已发布配置」。
+ * fail-open 粒度 = **单幕**：某一幕缺失 / 结构非法，只回落那一幕到本地生成，其余幕照用已发布配置。
+ */
+export type ActMapProvider = (act: number, layers: number) => SpireMap | null
+let actMapProvider: ActMapProvider | null = null
+
+/** 注入/清除已发布地图来源（clear = 传 null，回到纯本地生成） */
+export function setActMapProvider(p: ActMapProvider | null) {
+  actMapProvider = p
+}
+
+/**
+ * 取某一幕的地图：优先用已发布配置，缺失 / 非法时回落 generateMap。
+ * 注意 layers 只是"期望值"：已发布配置自带层数时以它为准（后台可以生成非 MAP_ROWS 层的图），
+ * 代价是 best 纪录的进度换算仍按 MAP_ROWS 常数走（见 runDepth 注释）。
+ */
+export function mapForAct(act: number, layers: number = MAP_ROWS): SpireMap {
+  const published = actMapProvider?.(act, layers)
+  if (published && published.nodes.length > 0) return published
+  return generateMap(layers)
 }
 
 /**
@@ -1092,7 +1125,10 @@ function enterNextAct(s: RunState) {
   s.lastActKills = s.actKills
   s.actKills = 0
   s.act++
-  s.map = generateMap(s.maxFloor)
+  // 新一幕同样优先取已发布配置（每幕一张独立地图）；该幕缺失时只回落这一幕
+  const map = mapForAct(s.act, s.maxFloor)
+  s.map = map
+  s.maxFloor = map.layers
   s.pos = null
   s.visited = []
   s.floor = 0

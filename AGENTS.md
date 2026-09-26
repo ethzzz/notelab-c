@@ -89,6 +89,43 @@ ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
   - ⚠️ **带 `[]` 的任意值类不能用正则或 `grep` 搜**：`opacity-[0.76]` 在 CSS 里写作 `.opacity-\[0\.76\]`，**反斜杠是字面量**，正则中要写成 `\\\\`，在 shell 里几乎必然转义错——结果只匹配到 `--tw-grayscale:initial` 这类变量声明，从而**误判"类没生成"**（`.grayscale-[.4]` 与 `.opacity-[0.76]` 各踩过一次）。
     做法：`scp` 线上 `.next/static/chunks/*.css` 回本地，用 Python **纯子串查找**——`css.find(r".opacity-\[0\.76\]")`，找到后打印到 `}` 看规则体；顺带确认**旧类已被 tree-shake 移除**（不再被引用就该消失，否则可能核的是错的那份产物）。
 
+## 已发布配置：素材槽位与地图方案（2026-09-26 起由 B 端下发）
+
+B 端「爬塔尖塔工坊」拆成了 6 个子页，其中**素材资源**（`/admin/spire-editor/assets`）与
+**地图生成**（`/admin/spire-editor/map`）产出的配置会随「发布到 C 端」下发给本仓。
+C 端匿名接口 `/api/c/spire/content` 一次取回 4 个切片（`cards` / `characters` / `skills` / `charAccess`）
+加上新增的 `assets` / `maps`，入口仍是 `lib/spire-content.ts` 的 `loadSpireContent()`。
+
+| 切片 | C 端文件 | 消费点 | 缺失/非法时 |
+|---|---|---|---|
+| `assets`（槽位→素材路径） | `lib/spire-assets.ts` | `artForNodeType()`（节点整图）、`spireAssetUrl(LINK_SLOT)`（连线）、`spireAssetUrl(BG_MAP_SLOT/BG_HOME_SLOT)`（背景）、`charArtUrl()`（角色立绘，经 `SpireSprites`） | 逐槽位回落内置默认；`event` 槽位默认**故意为空**（走自绘圆盘） |
+| `maps`（多套命名方案） | `lib/spire-maps.ts` | `makePublishedMapProvider()` → 注入引擎的 `setActMapProvider()`；引擎 `mapForAct()` 在 `newRun` / `enterNextAct` 取用 | `provider` 为 null → 全程本地 `generateMap()`；**粒度是单幕**：某幕缺失/非法只回落那一幕 |
+
+**四条必须守住的约定**：
+
+1. **槽位 key 是跨端契约**，B 端 `notelab-b/src/lib/spire-assets.ts` 的 `ASSET_SLOTS` / `char.<id>` 与本仓
+   `lib/spire-assets.ts` 必须**同名同义**。改名不会报错，只会**静默失配 → 回落默认**，表现为
+   「后台配了但线上没生效」。加槽位的顺序是「B 端注册表加一行 → C 端加消费点」。
+   （`char.*` 是**开放命名空间**：B 端按运行时角色池动态生成槽位，所以新建工坊角色能立刻配立绘。）
+2. **`revealedType` 会被引擎写回节点** → 已发布地图**每次取用都必须深拷贝**（`cloneAct`）。
+   若三幕共用同一份对象，第二局开局就会继承上一局的揭示结果。这条有专门的断言守着
+   （`.sync/verify-maps-e2e.js`，见下）。
+3. **`s.maxFloor` 以实际用的那张图为准**（`map.layers`），因为后台可以生成非 16 层的图。
+   但 `runDepth()` 的换算基数仍是 `MAP_ROWS` 常量（改它会让 localStorage 里的历史 best 值口径突变），
+   所以自定义层数时「纪录档位」与页面上的「第 N/M 层」会不一致 —— 这是**已知取舍**，不是 bug。
+4. **盘面背景图会破坏 `DISC_BG` 那条红线**：「圆盘最外圈必须比幕底色亮」是在**纯渐变底**下算的。
+   任意用户图都可能更亮 → 节点糊进背景。`withBgImage()` 因此固定叠了一层近黑压暗层；
+   换背景图后仍要目视确认一次（B 端槽位提示里写了「选低对比图」）。
+   同理 `ART_BOX_K`（节点整图的尺寸归一系数）是按**素材包那六张图**量的，换构图差异大的图会偏大/偏小。
+
+**验证脚本（在 `.sync/`，不入库）**：`.sync/verify-maps-e2e.js` 把 B 端生成器与本仓校验器**逐字转译**后对跑，
+覆盖 4 种层数 × 5 个种子、808 条断言（结构不变量 / 深拷贝隔离 / defaultId 选择 / fail-open 单幕粒度 / 18 种坏数据必须被拒）。
+```bash
+node .sync/verify-maps-e2e.js     # 不需要服务器：用 notelab-b/node_modules 里的 typescript 转译
+```
+⚠️ 别用「节点数 + 首节点的 next」这类**弱指纹**判断两张图是否相同：层数少时（如 5 层、每幕 12 个节点）
+弱指纹会误报"两幕一样"，实测三幕其实全不同。要指纹就用全量 `id:type>next`。
+
 ## ⚠️ 本仓没有测试脚本
 
 仓库与服务器上**没有** `tests/` 目录，`package.json` 只有 `dev` / `build` / `start` 三个脚本。

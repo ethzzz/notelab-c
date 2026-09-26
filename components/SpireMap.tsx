@@ -5,6 +5,7 @@ import {
   mapRows, reachableIds, NODE_META, nodeTypeOf,
   type RunState, type NodeType,
 } from "@/lib/spire-engine"
+import { artForNodeType, spireAssetUrl, withBgImage, LINK_SLOT, BG_MAP_SLOT } from "@/lib/spire-assets"
 
 // 桌面基准尺寸；小屏（≤640px）走 compact 覆盖：收窄行号列/节点/行高并隐藏行号，
 // 保证 6 列节点在窄屏不溢出列宽、不被容器裁切（语义由下方图例 + title 兜底）
@@ -79,6 +80,7 @@ const VIS = { normal: 64, boss: 96, normalCompact: 44, bossCompact: 66 }
 // 连线美术（素材包 public/spire/art/link-straight.png，自然比例 165x24 ≈ 6.9:1）。
 // 连线是**直弦**渲染：把这张横向小径沿弦长拉伸（preserveAspectRatio="none"）再按弦角旋转。
 // 弦长范围约 116~330，对应比例 5.8~16.5 —— 短边略胖、长边偏瘦，都仍在"一条发光小径"的合理区间。
+// **这张图可由后台「素材资源配置」覆盖**（槽位 link.straight），这里只是内置默认值。
 const LINK_ART = "/games/spire/art/link-straight.png"
 const LINK_THICK = 20        // 桌面
 const LINK_THICK_COMPACT = 15
@@ -177,12 +179,17 @@ const GLYPHS: Record<NodeType, ReactNode> = {
 
 /**
  * 节点形象。size 传的是**看得见的圆**的直径（不是整图画布）：
- *  ① 素材包有整图（NODE_META[type].art）→ 按该类型的 ART_BOX_K 折算出显示框并居中铺满，外沿烟雾自然溢出成柔光晕；
- *  ② 没有整图（现在只有 event）→ 回落到「石质圆盘 + 自绘线描图标」，圆盘直径就是 size，与①视觉上一样大。
+ *  ① 有整图（后台配置的 node.* 槽位 → 否则回落内置 NODE_META[type].art）
+ *     → 按该类型的 ART_BOX_K 折算出显示框并居中铺满，外沿烟雾自然溢出成柔光晕；
+ *  ② 没有整图（内置只有 event）→ 回落到「石质圆盘 + 自绘线描图标」，圆盘直径就是 size，与①视觉上一样大。
  * 整图是 png，用 <img> 直接引用即可（路径已带 basePath /games），别内联、也别放大。
+ *
+ * ⚠️ ART_BOX_K 是按素材包那六张图的构图量的。后台换成构图差异很大的图时，
+ * 尺寸归一系数**不会**跟着变 —— 新图可能显得偏大或偏小（尤其几乎满画布构图的图）。
+ * 这是已知取舍（换图不重新量），要精确对齐得再跑一次 .sync/art-bbox.py 那套度量。
  */
 function NodeArt({ type, size, glyphClass }: { type: NodeType; size: number; glyphClass: string }) {
-  const art = NODE_META[type].art
+  const art = artForNodeType(type)
   if (art) {
     const box = size * ART_BOX_K[type]
     return (
@@ -220,7 +227,7 @@ function NodeArt({ type, size, glyphClass }: { type: NodeType; size: number; gly
 }
 
 /**
- * 自绘线性图标（fallback）：只有 NODE_META[type].art 为空时才用（现在只有 event）。
+ * 自绘线性图标（fallback）：只有整图为空时才用（内置数据只有 event）。
  * 保留全部类型是刻意的 —— 它就是「素材包没整图时」的统一回落路径，别删成只剩 event。
  */
 function Glyph({ type, className }: { type: NodeType; className?: string }) {
@@ -368,6 +375,12 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
   // BOSS 行此刻在最上（地图自下而上）：分隔线画在它的**下沿**，把"塔顶"从普通层里拎出来（BOSS 行恒为 1 个节点）
   const bossRowBottom = PAD_TOP + ROW_H
   const linkThick = compact ? LINK_THICK_COMPACT : LINK_THICK
+  // 连线整图可被后台覆盖（槽位 link.straight）；未配置时就是上面的内置默认
+  const linkArt = spireAssetUrl(LINK_SLOT, LINK_ART)
+  // 盘面背景图（槽位 bg.spire.map）：叠在幕主题渐变上，第一层是压暗层
+  const bgImage = spireAssetUrl(BG_MAP_SLOT)
+  const themeBg = `linear-gradient(180deg, ${theme.bgTop} 0%, ${theme.bgBottom} 100%)`
+  const bgLayers = withBgImage(themeBg, bgImage)
 
   return (
     <>
@@ -376,8 +389,12 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
         className="spire-map relative mx-auto w-full overflow-hidden rounded-2xl border border-white/[.07]"
         style={{
           maxWidth: MAX_W,
-          // 近黑中性底：极淡纵向渐变，不发光（底色倾向随幕微调）
-          background: `linear-gradient(180deg, ${theme.bgTop} 0%, ${theme.bgBottom} 100%)`,
+          // 近黑中性底：极淡纵向渐变，不发光（底色倾向随幕微调）。
+          // 配了盘面背景图时换成三层叠加（压暗层 / 图片 / 幕主题渐变）——
+          // ⚠️ 背景图亮度不可控，可能比幕主题底色亮。DISC_BG 那条「圆盘外圈必须比底色亮」的红线
+          // 是在**纯渐变底**下成立的；换任意背景图后要重新目视确认（后台槽位提示里也写了选低对比图）。
+          background: bgLayers ? undefined : themeBg,
+          ...bgLayers,
         }}
       >
         <style>{`
@@ -472,7 +489,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
             return (
               <image
                 key={`l${i}`}
-                href={LINK_ART}
+                href={linkArt}
                 x={mx - e.len / 2}
                 y={my - linkThick / 2}
                 width={e.len}

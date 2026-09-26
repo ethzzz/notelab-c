@@ -6,6 +6,7 @@
 // 找不到对应 id 时组件返回 null，由调用方回退显示原 emoji（健壮性）。
 
 import type { ReactNode } from "react"
+import { charArtUrl } from "@/lib/spire-assets"
 
 /** 两段纵向渐变（用于体积感），id 必须全局唯一 */
 const lg = (id: string, c1: string, c2: string) => (
@@ -314,10 +315,32 @@ const SPRITES: Record<"player" | "enemy", Record<string, ReactNode>> = {
   enemy: { cultist, worm, louse, slime, fungi, nob, sentry, king, jadeGolem, spireLord },
 }
 
-export const hasSpireSprite = (kind: "player" | "enemy", id: string) => !!SPRITES[kind]?.[id]
+// 配了 char.<id> 立绘的角色也算"有形象" —— 否则调用点会走 emoji 回退，
+// 后台配的图永远不会被渲染（工坊自定义角色尤其容易出现：它们本来就没有内置 SVG）
+export const hasSpireSprite = (kind: "player" | "enemy", id: string) =>
+  !!SPRITES[kind]?.[id] || (kind === "player" && !!charArtUrl(id))
 
-/** 渲染形象精灵；未知 id 返回 null（调用方负责回退 emoji） */
+/**
+ * 渲染形象精灵；未知 id 返回 null（调用方负责回退 emoji）。
+ *
+ * 玩家角色可被后台「素材资源配置」的 `char.<id>` 槽位覆盖成图片（透明底 PNG 效果最好）：
+ * 覆盖时直接出 <img>，不再渲染内部 SVG —— 这样各调用点（选角卡 / 战斗立绘 / 图例）
+ * 都自动跟着换，无需改它们的代码。
+ * 敌人形象**暂不可配**：敌人 id 清单只在引擎里，已发布配置没有镜像常量（见 B 端槽位注册表说明）。
+ */
 export function SpireSprite({ kind, id, className }: { kind: "player" | "enemy"; id: string; className?: string }) {
+  const custom = kind === "player" ? charArtUrl(id) : ""
+  if (custom) {
+    return (
+      <img
+        src={custom} alt="" aria-hidden="true" draggable={false}
+        className={className}
+        // maxWidth/Height:none —— Tailwind preflight 的 img{max-width:100%} 会挤压尺寸，
+        // objectFit:contain 保证非正方形立绘不被拉伸变形
+        style={{ objectFit: "contain", maxWidth: "none", maxHeight: "none" }}
+      />
+    )
+  }
   const node = SPRITES[kind]?.[id]
   if (!node) return null
   return (

@@ -7,12 +7,15 @@ import {
   enterNode, restHeal, restUpgrade, usePotion, leaveEvent, nextAct,
   POTION_DEFS, MAX_POTIONS,
   enemyAtkPreview, REMOVE_COST, MAX_FLOOR, TOTAL_ACTS, runDepth, CHARACTERS, characterOf, applyCustomContent,
+  setActMapProvider,
   type RunState, type Move, type FxEvent, type FxTarget, type PotionKind, type CardCategory,
 } from "@/lib/spire-engine"
 import { SpireCardView as CardView } from "@/components/SpireCardView"
 import SpireMap, { actThemeName, actAccent } from "@/components/SpireMap"
 import { SpireSprite, hasSpireSprite } from "@/components/SpireSprites"
 import { loadSpireContent } from "@/lib/spire-content"
+import { makePublishedMapProvider } from "@/lib/spire-maps"
+import { setSpireAssets, spireAssetUrl, withBgImage, BG_HOME_SLOT } from "@/lib/spire-assets"
 import { sfx, unlockSpireAudio, isSpireMuted, setSpireMuted, type SpireSfx } from "@/lib/spire-audio"
 import { fetchMe } from "@/lib/auth"
 
@@ -256,11 +259,17 @@ export default function SpirePage() {
     else if (ph === "shop") sfx("shop")
   })
 
-  // 加载工坊自定义卡/角色并注册进引擎，同时取回角色授权白名单（charAccess）
+  // 加载工坊自定义卡/角色并注册进引擎，同时取回角色授权白名单（charAccess）、
+  // 素材资源槽位（assets）与已发布地图方案（maps）。
+  // 三者都是**整体替换式**注入，且都 fail-open：接口挂了 / 后端没配 → 全部走内置默认与本地生成。
   useEffect(() => {
     loadSpireContent().then((c) => {
       applyCustomContent(c.cards, c.characters)
       setCharAccess(c.charAccess || {})
+      setSpireAssets(c.assets)
+      // 已发布地图的取用口：makePublishedMapProvider 在"一份可用配置都没有"时返回 null，
+      // 此时把 provider 清空，行为回到纯本地生成（与加这个功能之前完全一致）
+      setActMapProvider(makePublishedMapProvider(c.maps))
       bump()
     })
     // 静默取当前登录用户（未登录/无 group_code 返回 null）→ 按 default 组处理；
@@ -305,10 +314,14 @@ export default function SpirePage() {
 
   const backToMenu = () => { sfx("select"); sp.current = null; setShowDeck(false); setRemoveMode(false); setPickOpen(false); setCopyPick(false); setUpgradePick(false); setAction(null); bump() }
 
+  // 爬塔入口 / 选角页背景（槽位 bg.spire.home）。未配置时返回 null，
+  // 两个菜单页继续用原来的 Tailwind 渐变 class；配置后用内联 backgroundImage 覆盖它。
+  const homeBgStyle = withBgImage("linear-gradient(180deg, #141021 0%, #0b0e1a 100%)", spireAssetUrl(BG_HOME_SLOT)) ?? undefined
+
   // ---------------- 角色选择 ----------------
   if (!s && pickOpen) {
     return (
-      <div className="relative h-[calc(100vh-6.5rem)] overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
+      <div style={homeBgStyle} className="relative h-[calc(100vh-6.5rem)] overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
         <div className="mx-auto flex max-w-3xl flex-col items-center px-4 py-8">
           <h2 className="text-2xl font-black text-white">选择你的角色</h2>
           <p className="mt-1 text-xs text-zinc-400">每个角色拥有独特的被动与主动技能</p>
@@ -360,7 +373,7 @@ export default function SpirePage() {
   // ---------------- 主菜单 ----------------
   if (!s) {
     return (
-      <div className="relative h-[calc(100vh-6.5rem)] overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
+      <div style={homeBgStyle} className="relative h-[calc(100vh-6.5rem)] overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
         <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-10 text-center">
           <div className="text-6xl">🗼</div>
           <h1 className="mt-2 text-3xl font-black text-white">爬塔尖塔</h1>
