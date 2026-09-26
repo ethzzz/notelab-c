@@ -44,11 +44,12 @@ ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
 ## 美术与音效：代码内联为主，`public/spire/` 是唯一例外（2026-09-26 起）
 
 爬塔（`/spire`）的声音**仍然全部合成**（零音频文件），外观大部分内联在代码里；
-**唯一入仓的素材是地图节点图标包 `public/spire/`**（svg 为源 + 2x png + manifest + 生成配置 + 样例图）。
+**唯一入仓的素材是地图节点素材包 `public/spire/`**（`svg/`+`png/` 是矢量层，`art/` 是整图层，另有 manifest / 生成配置 / 样例图）。
 
 | 层 | 文件 | 做法 |
 |---|---|---|
-| 地图节点图标 | `public/spire/svg/*.svg` | **素材包**，经 `NODE_META.sprite`（带 basePath 前缀 `/games`）用 `<img>` 引用；event 无素材、沿用自绘问号 |
+| 地图节点整图 | `public/spire/art/icon-*.png` | **素材包整图**，经 `NODE_META.art`（带 basePath 前缀 `/games`）用 `<img>` 铺满节点；event 无整图、回落到「圆盘 + 自绘线描」 |
+| 地图连线整图 | `public/spire/art/link-straight.png` | 沿**直弦**拉伸（`preserveAspectRatio="none"`）+ 按弦角旋转；状态只用透明度区分，可选态再叠一条流动虚线 |
 | 地图生成规则 | `public/spire/map-gen.config.json` | **生成配置**（权重 / 最小层数 / 揭示池 / 最大列数），被 `lib/spire-engine.ts` import —— 调平衡改这里，别在代码里写魔数 |
 | 形象精灵 | `components/SpireSprites.tsx` | 内联 SVG（渐变塑体积 + 细描边 + 地面投影 + CSS 待机呼吸）；未知 id 回退 emoji |
 | 地图盘面美术 | `components/SpireMap.tsx` | 内联 SVG + 按幕主题取色（`ACT_THEMES` / `actAccent` / `actThemeName`） |
@@ -57,8 +58,12 @@ ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
 
 - 素材包来源是**自产**（非第三方素材库），所以不触发「禁止第三方图标库 / 受版权素材」那条约束；
   **外链图片与 emoji 当主形象仍是禁区**，别因为有了 `public/` 就开始外链图片。
-- **素材包约定**（见 `public/spire/manifest.json`）：三层同尺寸同锚点叠加（node.base + icon.类型 + state.状态），
-  `svg/` 是源头、**要别的尺寸从 svg 重新导出，不要放大 png**；`state.*` / `link.*` 两组素材尚未接入，接入时按 manifest 的 `renderOrder`。
+- **两层的分工**（见 `public/spire/manifest.json` 的 `spec.artNote` / `composition.artNote`）：
+  - `art/` 是**整图层**：圆形整幅画，自带"石质外环 + 外沿烟雾"，**没有矢量源**，原生尺寸各不一致（320~760，那只是导出尺寸、不是显示尺寸）。
+    渲染时铺满节点并轻微出血（`ART_SCALE`），**圆盘底色/描边必须一起取消** —— 叠上去就变成"球里贴了张画"（已用对照页比过，见下方验收方法）。
+  - `svg/`+`png/` 是**矢量图层**（`png` 是 `svg` 的 2 倍导出，`svgIsSourceOfTruth`）：**已不参与节点渲染**，只在类型 `art` 为 null 时由 SpireMap 的自绘线描兜底。
+    要别的尺寸从 svg 重导，**不要放大 png**；但 `art/` 是位图，只能重采样。
+  - 仍未接入：`state.*`（三态覆盖层）、`node.base`、`link.branch`。接入时按 manifest 的 `renderOrder`。
 - **要换成真实录音音效**：音频放进 `public/sounds/`（需新建该目录），在 `lib/spire-audio.ts` 顶部的 `FILE_SOURCES` 登记一次即可 —— 命中走文件、拉取或解码失败自动回落合成音，**调用方无需改动**。注意同文件的 `SOUND_DIR` 常量硬编码了 `/games/sounds/`，**与 `next.config.ts` 的 basePath 绑定**，改前缀须同步。
 - 合成音效不涉及第三方素材，**因此不需要 credits 署名**。若日后引入 CC BY / CC BY-SA 类素材，须在页面加署名区块；CC BY-SA / GPL 有传染性，**不要引入**。
 - **改音效参数的验证方式**（构建期查不出静默哑音）：`exponentialRampToValueAtTime` 的目标必须是非零正数，传 0 / 负数会抛 `RangeError`，而 `sfx()` 全身 `try/catch`，越界只会**静默没声音**。做法是写一个 stub `AudioContext`（实现 `createGain/createOscillator/createBufferSource/createBiquadFilter/createBuffer` 并断言所有参数为有限数、指数斜坡目标为正），遍历全部音效 × 若干档音高，检查每个都产生了声源。Node 22 可直接跑：`node --experimental-strip-types <脚本>`（注意 strip-only 模式**不支持 TS 参数属性** `constructor(public x: T)`）。

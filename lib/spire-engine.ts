@@ -424,20 +424,21 @@ export const actScale = (act: number) => 1 + (Math.max(1, act) - 1) * 0.3
 /** 综合进度（跨幕），用于最佳纪录 —— 避免多幕后只记层数导致语义错乱；兼容旧值（层数） */
 export const runDepth = (s: { act: number; floor: number }) => (s.act - 1) * MAP_ROWS + s.floor
 /**
- * 节点形象。sprite = 素材包 public/spire/svg/ 下的图标（**必须带 basePath 前缀 `/games`**，
- * 与 spire-audio 的 SOUND_DIR 同一套约定）；null = 素材包没有对应图标，沿用 SpireMap 的自绘线性图标。
+ * 节点形象。art = 素材包 `public/spire/art/` 下的**整幅圆形美术**（路径**必须带 basePath 前缀 `/games`**，
+ * 与 spire-audio 的 SOUND_DIR 同一套约定）—— 直接铺满节点，画面自带的石质外环 + 外沿烟雾就是底框。
+ * null = 素材包没有对应整图（现在只有 event），回落到 SpireMap 的「圆盘 + 自绘线描图标」老画法。
  * icon 字段是历史遗留的 emoji，当前已无人引用，仅为兼容保留。
  */
-export const NODE_META: Record<NodeType, { icon: string; name: string; sprite: string | null }> = {
-  enemy:  { icon: "⚔️", name: "普通敌人", sprite: "/games/spire/svg/icon-normal.svg" },
-  elite:  { icon: "👹", name: "精英敌人", sprite: "/games/spire/svg/icon-elite.svg" },
-  boss:   { icon: "👑", name: "BOSS",     sprite: "/games/spire/svg/icon-boss.svg" },
-  rest:   { icon: "🔥", name: "补给营地", sprite: "/games/spire/svg/icon-rest.svg" },
-  shop:   { icon: "🛒", name: "商店",     sprite: "/games/spire/svg/icon-shop.svg" },
-  random: { icon: "❓", name: "未知",     sprite: "/games/spire/svg/icon-random.svg" },
-  // 素材包没有「事件」图标。若让 event 也指向 icon-random.svg，会和未揭示节点完全撞脸，
-  // 玩家无法区分"进去触发事件"和"进去才知道是什么"，故 event 沿用自绘问号
-  event:  { icon: "❓", name: "未知事件", sprite: null },
+export const NODE_META: Record<NodeType, { icon: string; name: string; art: string | null }> = {
+  enemy:  { icon: "⚔️", name: "普通敌人", art: "/games/spire/art/icon-normal.png" },
+  elite:  { icon: "👹", name: "精英敌人", art: "/games/spire/art/icon-elite.png" },
+  boss:   { icon: "👑", name: "BOSS",     art: "/games/spire/art/icon-boss.png" },
+  rest:   { icon: "🔥", name: "补给营地", art: "/games/spire/art/icon-rest.png" },
+  shop:   { icon: "🛒", name: "商店",     art: "/games/spire/art/icon-shop.png" },
+  random: { icon: "❓", name: "未知",     art: "/games/spire/art/icon-random.png" },
+  // 素材包没有「事件」整图。若让 event 也指向 icon-random.png，会和未揭示节点完全撞脸，
+  // 玩家无法区分"进去触发事件"和"进去才知道是什么"，故 event 沿用自绘问号（art = null）
+  event:  { icon: "❓", name: "未知事件", art: null },
 }
 
 /** 节点对外的有效类型：random 未揭示时就是 random，揭示后按 revealedType 走（决定图标与结算） */

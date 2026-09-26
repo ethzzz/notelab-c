@@ -45,15 +45,43 @@ export const actThemeName = (act: number) => themeOf(act).name
 /** 幕强调色（页顶栏 / 战斗底色点缀用，与地图强调色一致） */
 export const actAccent = (act: number) => themeOf(act).accent
 
-const BASE_EDGE = "rgba(255,255,255,.12)" // 普通/未来路径：低透明安静细线
-const SHADOW_EDGE = "rgba(0,0,0,.5)"      // 连线底衬：给路径一点厚度
-// 圆盘底面：径向渐变（上亮下暗）做出球面体积。
+// 圆盘底面：径向渐变（上亮下暗）做出球面体积。**只给没有素材包整图的类型用**（现在只有 event）——
+// 有整图的类型由画面自带的石质外环 + 烟雾承担底框，不再垫这一层（垫了会变成"球里贴了张画"）。
 // 最外圈必须比三幕底色（#15161c / #111a19 / #1a1218）都亮 —— 原先外圈 #12141a 比幕1、幕3 的底色还暗，
 // 圆盘因此看起来像"洞"、与背景糊在一起；同时整体提一档亮度，让节点真正从底色里立起来
 const DISC_BG = "radial-gradient(circle at 50% 30%, #3e4553 0%, #272c37 58%, #1e222c 100%)"
 // 中轴光柱的横向羽化遮罩：中段实、两端渐隐。
 // 光柱若只有竖向渐变，左右两侧就是硬边，在深底上会显出一整块矩形色差（截图里"背景中间那块色差"）
 const SPINE_FADE = "linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 26%, rgba(0,0,0,.78) 44%, #000 50%, rgba(0,0,0,.78) 56%, rgba(0,0,0,.28) 74%, transparent 100%)"
+
+// ---------------- 素材包整图（public/spire/art/） ----------------
+// **六张整图不能共用一个显示框**：它们的构图差得很远（雾区轮廓宽占画布 0.71~0.98，亮区宽 0.34~0.90），
+// 同一个框里画出来，icon-random 会比别的节点大一圈、icon-shop 又显得最小 —— 一眼就看出"尺寸没对齐"。
+// 下面的系数是「显示框 ÷ 目标视觉直径」，来路是 .sync/art-bbox.py 的两个度量
+// （① 雾区轮廓宽 ② 亮区宽，都按"和普通敌人等大"归一化）分别算一遍再取几何平均，
+// 最后用 .sync/rand-ab.png 上眼 A/B 校过一次 —— random 是唯一近乎满画布构图的一张，单独收到 0.91。
+// **换素材后要重新量、重新 A/B**，别照抄这张表。
+const ART_BOX_K: Record<NodeType, number> = {
+  enemy: 1.53, elite: 1.58, rest: 1.51, shop: 1.50, random: 0.91, boss: 1.33,
+  event: 1, // 没有整图：直接按目标视觉直径画圆盘
+}
+// 节点「看得见的圆」直径。口径与换素材前的圆盘对齐（普通 64 / BOSS 96，刚好是老设计的 1.5 倍），
+// 盘面的疏密节奏因此不变；行距 ROW_H 116（紧凑 84）也不动 —— 显示框之外只剩柔化的烟雾，行间不会糊成一片
+const VIS = { normal: 64, boss: 96, normalCompact: 44, bossCompact: 66 }
+// 连线美术（素材包 public/spire/art/link-straight.png，自然比例 165x24 ≈ 6.9:1）。
+// 连线是**直弦**渲染：把这张横向小径沿弦长拉伸（preserveAspectRatio="none"）再按弦角旋转。
+// 弦长范围约 116~330，对应比例 5.8~16.5 —— 短边略胖、长边偏瘦，都仍在"一条发光小径"的合理区间。
+const LINK_ART = "/games/spire/art/link-straight.png"
+const LINK_THICK = 20        // 桌面
+const LINK_THICK_COMPACT = 15
+// 沿弦两端各外扩一点：把整图柔化的端头压到节点整图之下，避免出现"路径断头"
+const LINK_ART_PAD = 1.14
+// 连线状态只用透明度区分（素材本身是暖色发光小径，再叠色会脏）：
+// 未走=安静、已走过=微亮、可选=全亮并在其上再叠一条流动虚线
+const LINK_OPACITY = { base: 0.38, trail: 0.62, active: 1 } as const
+// 图例徽章「看得见的圆」直径。图例必须跟盘面节点用同一份 NodeArt ——
+// 换成矢量线描会和盘面上的"画"对不上号（比如线描的精英是双剑，盘面上却是带角魔颅）
+const LEGEND_VIS = 38
 
 // 类型配色：低饱和哑光。stroke=图标/描边提亮色，border=圆盘细描边色。
 // 圆盘底色提亮后，描边/图标同步提一档，否则细描边与图标会被更亮的盘面"吃掉"
@@ -119,7 +147,7 @@ const GLYPHS: Record<NodeType, ReactNode> = {
       <path d="M12 16.9 v.2" />
     </>
   ),
-  // 石门 + 问号：仅作兜底（正常情况下 random 走素材包 icon-random.svg，见下方 Glyph）
+  // 石门 + 问号：仅作兜底（正常情况下 random 走素材包整图 art/icon-random.png，见 NodeArt）
   random: (
     <>
       <path d="M6.4 20.2 V9.4 a5.6 5.6 0 0 1 11.2 0 V20.2" />
@@ -140,15 +168,54 @@ const GLYPHS: Record<NodeType, ReactNode> = {
 }
 
 /**
- * 节点图标：优先用素材包 public/spire/svg 下的矢量图标（NODE_META.sprite，路径已带 basePath /games）；
- * 没有对应素材的类型（现在只有 event）回落到自绘线性图标。
- * 素材包是矢量源，用 <img> 直接引用即可 —— 别改成内联或放大 png。
+ * 节点形象。size 传的是**看得见的圆**的直径（不是整图画布）：
+ *  ① 素材包有整图（NODE_META[type].art）→ 按该类型的 ART_BOX_K 折算出显示框并居中铺满，外沿烟雾自然溢出成柔光晕；
+ *  ② 没有整图（现在只有 event）→ 回落到「石质圆盘 + 自绘线描图标」，圆盘直径就是 size，与①视觉上一样大。
+ * 整图是 png，用 <img> 直接引用即可（路径已带 basePath /games），别内联、也别放大。
+ */
+function NodeArt({ type, size, glyphClass }: { type: NodeType; size: number; glyphClass: string }) {
+  const art = NODE_META[type].art
+  if (art) {
+    const box = size * ART_BOX_K[type]
+    return (
+      <img
+        src={art} alt="" aria-hidden="true" draggable={false}
+        className="pointer-events-none absolute left-1/2 top-1/2"
+        // maxWidth:none —— Tailwind preflight 的 img{max-width:100%} 会把溢出的雾边裁回 size
+        style={{ width: box, height: box, marginLeft: -box / 2, marginTop: -box / 2, maxWidth: "none" }}
+      />
+    )
+  }
+  return (
+    <span
+      className="pointer-events-none absolute flex items-center justify-center rounded-full"
+      style={{
+        width: size, height: size,
+        background: DISC_BG,
+        border: `1px solid ${TYPE_STYLE[type].border}`,
+        color: TYPE_STYLE[type].stroke,
+        boxShadow: "inset 0 1px 2px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.035)",
+      }}
+    >
+      <Glyph type={type} className={glyphClass} />
+      {/* 圆盘上缘高光弧：强化球面体积感 */}
+      <span
+        className="pointer-events-none absolute rounded-full"
+        style={{
+          left: "18%", right: "18%", top: "10%", height: "26%",
+          background: "linear-gradient(180deg, rgba(255,255,255,.12), transparent)",
+          borderRadius: "999px", filter: "blur(.4px)",
+        }}
+      />
+    </span>
+  )
+}
+
+/**
+ * 自绘线性图标（fallback）：只有 NODE_META[type].art 为空时才用（现在只有 event）。
+ * 保留全部类型是刻意的 —— 它就是「素材包没整图时」的统一回落路径，别删成只剩 event。
  */
 function Glyph({ type, className }: { type: NodeType; className?: string }) {
-  const sprite = NODE_META[type].sprite
-  if (sprite) {
-    return <img src={sprite} alt="" aria-hidden="true" draggable={false} className={className} />
-  }
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor"
       strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -224,7 +291,12 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
   const circleRefs = useRef<Record<string, HTMLSpanElement | null>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState<
-    { x1: number; y1: number; x2: number; y2: number; state: "base" | "trail" | "active" }[]
+    {
+      x1: number; y1: number; x2: number; y2: number
+      state: "base" | "trail" | "active"
+      len: number   // 整图沿弦的显示长度（含两端外扩）
+      ang: number   // 弦角（度），整图按它旋转
+    }[]
   >([])
 
   useEffect(() => {
@@ -248,7 +320,15 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           let state: "base" | "trail" | "active" = "base"
           if (visited.has(n.id) && visited.has(tid)) state = "trail"
           else if (pos === n.id && reach.has(tid)) state = "active"
-          out.push({ x1, y1, x2, y2, state })
+          // 连线用**直弦**而非贝塞尔：整图是横向小径，只有直弦才能整条贴合（曲线得切成多段，
+          // 每段都会被压成又短又瘦的一条，观感反而更差）
+          const dx = x2 - x1
+          const dy = y2 - y1
+          out.push({
+            x1, y1, x2, y2, state,
+            len: Math.hypot(dx, dy) * LINK_ART_PAD,
+            ang: (Math.atan2(dy, dx) * 180) / Math.PI,
+          })
         }
       }
       setEdges(out)
@@ -277,13 +357,9 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
     height: containerHeight,
   }
 
-  const pathD = (e: { x1: number; y1: number; x2: number; y2: number }) => {
-    const dy = e.y2 - e.y1
-    return `M ${e.x1} ${e.y1} C ${e.x1} ${e.y1 + dy * 0.5}, ${e.x2} ${e.y2 - dy * 0.5}, ${e.x2} ${e.y2}`
-  }
-
   // BOSS 行此刻在最上（地图自下而上）：分隔线画在它的**下沿**，把"塔顶"从普通层里拎出来（BOSS 行恒为 1 个节点）
   const bossRowBottom = PAD_TOP + ROW_H
+  const linkThick = compact ? LINK_THICK_COMPACT : LINK_THICK
 
   return (
     <>
@@ -374,29 +450,43 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           TOP
         </span>
 
-        {/* 连线层：先铺一层暗底衬（厚度），再画状态线（颜色） */}
+        {/* 连线层：底层铺素材包的横向小径整图（沿弦拉伸 + 按弦角旋转），
+            状态（未走/已走过/可选）只用透明度区分；可选再叠一条流动虚线做"下一步"提示 */}
         <svg
           className="pointer-events-none absolute inset-0"
           width="100%"
           height={containerHeight}
           style={{ overflow: "visible", zIndex: 0 }}
         >
-          {edges.map((e, i) => (
-            <path key={`s${i}`} d={pathD(e)} fill="none" vectorEffect="non-scaling-stroke"
-              stroke={SHADOW_EDGE} strokeWidth={5} strokeLinecap="round" />
-          ))}
           {edges.map((e, i) => {
+            const mx = (e.x1 + e.x2) / 2
+            const my = (e.y1 + e.y2) / 2
+            return (
+              <image
+                key={`l${i}`}
+                href={LINK_ART}
+                x={mx - e.len / 2}
+                y={my - linkThick / 2}
+                width={e.len}
+                height={linkThick}
+                preserveAspectRatio="none"
+                opacity={LINK_OPACITY[e.state]}
+                transform={`rotate(${e.ang.toFixed(2)} ${mx.toFixed(1)} ${my.toFixed(1)})`}
+              />
+            )
+          })}
+          {edges.map((e, i) => {
+            if (e.state === "base") return null
             const active = e.state === "active"
-            const trail = e.state === "trail"
             return (
               <path
-                key={i}
-                d={pathD(e)}
+                key={`s${i}`}
+                d={`M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}`}
                 vectorEffect="non-scaling-stroke"
                 fill="none"
-                stroke={active ? theme.accent : trail ? theme.trail : BASE_EDGE}
-                strokeOpacity={active ? 0.78 : 1}
-                strokeWidth={active ? 2.6 : trail ? 2.5 : 2}
+                stroke={active ? theme.accent : theme.trail}
+                strokeOpacity={active ? 0.78 : 0.5}
+                strokeWidth={active ? 2.6 : 1.6}
                 strokeLinecap="round"
                 strokeDasharray={active ? "7 7" : undefined}
                 style={active ? { animation: "spire-dash 1.6s linear infinite" } : undefined}
@@ -434,23 +524,26 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
             const can = reach.has(n.id)
             const isBoss = n.type === "boss"
             const ts = TYPE_STYLE[eff]
-            const size = isBoss ? (compact ? 60 : 96) : (compact ? 42 : 64)
+            // 「看得见的圆」直径：与换素材前的圆盘口径一致，盘面疏密节奏不变（BOSS 仍是 1.5 倍）。
+            // 行距 ROW_H 116 / 84 都不动 —— 圆之外只剩柔化的烟雾，行间不会糊成一片
+            const vis = isBoss
+              ? (compact ? VIS.bossCompact : VIS.boss)
+              : (compact ? VIS.normalCompact : VIS.normal)
             // 状态可读性：可达=正常亮度可点；已走过=略降透明+去饱和；未来不可达=更淡但仍须看得见。
-            // 原先 .4/.5 在近黑底上会把圆盘连同描边一起抹掉（即"关卡与背景重叠"），故收窄到 .55/.60
+            // 原先 .4/.5 在近黑底上会把圆盘连同描边一起抹掉（即"关卡与背景重叠"）。
+            // 换整图后再提一档（.55/.60 → .66/.70）：整图本身比线描图标暗，压太狠在近黑底上就只剩一团影子
             const stateCls = isCur
               ? ""
               : can
               ? "cursor-pointer"
               : done
-              ? "opacity-55 grayscale-[.4]"
-              : "opacity-60"
-            // 圆盘：径向渐变带来球面体积（上亮下暗）+ 细描边 + 内阴影微立体；常态无外发光。
-            // 当前节点=细亮环+极克制柔光（全场唯一焦点，带极慢呼吸）；BOSS=更粗描边环 + 外圈虚环。
-            // 常态最外再加 1px 冷白细高光：暗底上靠它把圆盘边缘"切"出来，避免与背景融成一片
+              ? "opacity-[0.66] grayscale-[.4]"
+              : "opacity-[0.7]"
+            // 外层 span 只做两件事：给当前节点挂亮环 + 供连线测中心点（只看中心，与直径无关）。
+            // 节点形象（整图 / 圆盘）全部由 NodeArt 画，故这里不再设底与描边
             const discShadow = isCur
-              ? `0 0 0 1.5px ${theme.accent}, 0 0 16px ${theme.accent}38, inset 0 1px 2px rgba(0,0,0,.5)`
-              : `inset 0 1px 2px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.035)`
-            const discBg = DISC_BG
+              ? `0 0 0 1.5px ${theme.accent}, 0 0 16px ${theme.accent}38`
+              : "none"
             return (
               <div
                 key={n.id}
@@ -467,8 +560,8 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                 <span
                   className="pointer-events-none absolute left-1/2 top-1/2 rounded-full"
                   style={{
-                    width: size + (compact ? 14 : 22), height: size + (compact ? 14 : 22),
-                    marginLeft: -(size + (compact ? 14 : 22)) / 2, marginTop: -(size + (compact ? 14 : 22)) / 2,
+                    width: vis + (compact ? 14 : 22), height: vis + (compact ? 14 : 22),
+                    marginLeft: -(vis + (compact ? 14 : 22)) / 2, marginTop: -(vis + (compact ? 14 : 22)) / 2,
                     border: `1px dashed ${ts.border}`, opacity: .55,
                   }}
                 />
@@ -478,8 +571,8 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                 <span
                   className="pointer-events-none absolute left-1/2 top-1/2 rounded-full"
                   style={{
-                    width: size + 14, height: size + 14,
-                    marginLeft: -(size + 14) / 2, marginTop: -(size + 14) / 2,
+                    width: vis + 14, height: vis + 14,
+                    marginLeft: -(vis + 14) / 2, marginTop: -(vis + 14) / 2,
                     border: `1px solid ${theme.accent}`,
                     animation: "spire-breathe 3s ease-in-out infinite",
                   }}
@@ -492,31 +585,20 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
                 style={{ animation: "spire-node-in .28s ease" } as CSSProperties}
                 className={`spire-node flex flex-col items-center outline-none ${stateCls}`}
               >
-                {/* 光圈/亮环必须挂在圆形 span 上（挂 button 会把 0 模糊 box-shadow 渲染成方框） */}
+                {/* 外层 span 只做两件事：给当前节点挂亮环/柔光 + 供连线测中心点（连线只取中心，与直径无关）。
+                    节点形象（整图 / 圆盘）一律交给 NodeArt —— 整图会溢出这个 span，所以这里不能 overflow-hidden */}
                 <span
                   ref={(el) => { circleRefs.current[n.id] = el }}
                   className="spire-disc relative flex items-center justify-center rounded-full"
                   style={{
-                    width: size, height: size,
-                    background: discBg,
-                    border: `${isBoss ? 2.5 : 1.5}px solid ${isCur ? theme.accent : ts.border}`,
-                    color: ts.stroke,
+                    width: vis, height: vis,
                     boxShadow: discShadow,
                     transition: "transform .16s ease, border-color .16s ease",
-                    // hover 提亮色（CSS 变量供 ::hover 规则取用）
+                    // hover 提亮色（CSS 变量供 ::hover 规则取用）；整图没有描边，故只对 hover 的 brightness 生效
                     ["--spire-hi" as string]: ts.stroke,
                   } as CSSProperties}
                 >
-                  <Glyph type={eff} className={isBoss ? "h-[58%] w-[58%]" : "h-[55%] w-[55%]"} />
-                  {/* 圆盘上缘高光弧：强化球面体积感 */}
-                  <span
-                    className="pointer-events-none absolute rounded-full"
-                    style={{
-                      left: "18%", right: "18%", top: "10%", height: "26%",
-                      background: "linear-gradient(180deg, rgba(255,255,255,.12), transparent)",
-                      borderRadius: "999px", filter: "blur(.4px)",
-                    }}
-                  />
+                  <NodeArt type={eff} size={vis} glyphClass={isBoss ? "h-[58%] w-[58%]" : "h-[55%] w-[55%]"} />
                 </span>
               </button>
               </div>
@@ -529,21 +611,19 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
         <div ref={bottomRef} className="pointer-events-none absolute inset-x-0" style={{ bottom: 0, height: 1 }} />
       </div>
 
-      {/* 图例：一行细线小图标 + sans 小字，低对比 */}
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12px]"
+      {/* 图例：一行整图小徽章 + sans 小字，低对比。
+          徽章必须跟盘面上的节点用同一份 NodeArt（同一套 ART_FILL 归一化）——
+          换成矢量线描会和盘面上的"画"对不上号（比如线描的精英是双剑，盘面上却是带角魔颅） */}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px]"
         style={{ color: "rgba(255,255,255,.45)" }}>
         {(["enemy", "elite", "rest", "shop", "event", "random", "boss"] as NodeType[]).map((t) => (
-          <span key={t} className="flex items-center gap-1.5">
+          <span key={t} className="flex items-center gap-2">
+            {/* 徽章槽位按最长的那张整图留（随机 0.916 这类接近满画布的除外，它们反而更窄） */}
             <span
-              className="flex items-center justify-center rounded-full"
-              style={{
-                width: 20, height: 20,
-                background: DISC_BG,
-                border: `1px solid ${TYPE_STYLE[t].border}`,
-                color: TYPE_STYLE[t].stroke,
-              }}
+              className="relative flex shrink-0 items-center justify-center"
+              style={{ width: LEGEND_VIS, height: LEGEND_VIS }}
             >
-              <Glyph type={t} className="h-[62%] w-[62%]" />
+              <NodeArt type={t} size={LEGEND_VIS} glyphClass="h-[62%] w-[62%]" />
             </span>
             {NODE_META[t].name}
           </span>

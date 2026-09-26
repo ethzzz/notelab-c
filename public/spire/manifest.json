@@ -1,7 +1,7 @@
 {
   "name": "dungeon-node-kit",
-  "version": "1.0.0",
-  "description": "地牢爬塔地图 · 可拆分节点素材包。底框全局复用一份，类型图标换着往里塞，状态覆盖层叠在最上层。所有资源同尺寸、同锚点、透明底。",
+  "version": "1.1.0",
+  "description": "地牢爬塔地图 · 可拆分节点素材包。底框全局复用一份，类型图标换着往里塞，状态覆盖层叠在最上层。所有资源同尺寸、同锚点、透明底。整图（art/）是后接入的一层：圆形整幅画，直接铺满节点，不叠底框。",
   "spec": {
     "nodeSize": 160,
     "unit": "px",
@@ -11,18 +11,24 @@
     "anchor": "center",
     "transparent": true,
     "formats": ["png", "svg"],
-    "svgIsSourceOfTruth": true
+    "svgIsSourceOfTruth": true,
+    "artDir": "art/",
+    "artNote": "art/ 是**整图**层（圆形整幅画，带石质外环 + 外沿烟雾，四周透明）。它没有矢量源，原生尺寸各不一致（320~760），按显示直径等比缩放即可，**不要试图从 svg/ 重新导出**。渲染时整图铺满节点，node.base 与 svg 的 icon 层都不再叠加。",
+    "artIsSourceOfTruth": true
   },
   "renderOrder": ["background", "link", "nodeBase", "icon", "stateOverlay"],
   "composition": {
     "node": "node.base + icon.<type>",
     "nodeWithState": "node.base + icon.<type> + state.<state>",
-    "note": "三层同尺寸同锚点，按中心对齐直接叠加。换类型只换 icon 层，底框与状态层不动。"
+    "note": "三层同尺寸同锚点，按中心对齐直接叠加。换类型只换 icon 层，底框与状态层不动。",
+    "artNode": "art.<type>（单层，铺满节点）",
+    "artNote": "该类型登记了 art 时，渲染只画 art 这一层 —— 它自己就带了底框（石质外环）与烟雾，再叠 node.base / icon 会变成「球里贴了张画」。art 为 null 的类型才回落到 node.base + icon 的老画法。"
   },
   "linkUsage": {
     "note": "连线尺寸 160x48，纵向首尾相接可无限延长；45° 方向用 link.branch 的斜边，水平段用 link.straight。",
     "straight": "link.straight（水平直行段）",
-    "branch": "link.branch（自下向上分叉为左右两支）"
+    "branch": "link.branch（自下向上分叉为左右两支）",
+    "artUsage": "接入 art/link-straight.png 后，连线改为**直弦**渲染：把这张横向小径沿弦长拉伸（preserveAspectRatio=none）再按弦角旋转，状态只用透明度区分。不再用 link.straight / link.branch 的矢量段拼接。"
   },
   "assets": [
     {
@@ -35,7 +41,8 @@
       "size": [160, 160],
       "accent": "#8A6A3C",
       "reusable": true,
-      "notes": "石质徽章圆环，外径 148 / 内径 108。所有节点共用同一份。"
+      "art": null,
+      "notes": "石质徽章圆环，外径 148 / 内径 108。所有节点共用同一份。**仅 art 为 null 的类型使用**。"
     },
     {
       "id": "icon.normal",
@@ -46,7 +53,9 @@
       "svg": "svg/icon-normal.svg",
       "size": [160, 160],
       "accent": "#E8E0D0",
-      "notes": "苍白小头骨，出现频次最高。"
+      "art": "art/icon-normal.png",
+      "artSize": [320, 320],
+      "notes": "苍白小头骨（矢量层）。art 为整图：石质圆环里的骷髅浮雕 + 灰白雾气，出现频次最高。"
     },
     {
       "id": "icon.elite",
@@ -57,7 +66,9 @@
       "svg": "svg/icon-elite.svg",
       "size": [160, 160],
       "accent": "#FF3B2F",
-      "notes": "带外扩恶魔角的头骨 + 赤红眼 + 橙色余烬虚线环，体量明显大于普通小怪。"
+      "art": "art/icon-elite.png",
+      "artSize": [320, 320],
+      "notes": "带外扩恶魔角的头骨 + 赤红眼（矢量层）。art 为整图：暗色带角魔颅 + 红色裂纹光，体量感明显强于普通小怪。"
     },
     {
       "id": "icon.shop",
@@ -68,7 +79,9 @@
       "svg": "svg/icon-shop.svg",
       "size": [160, 160],
       "accent": "#2FB3A0",
-      "notes": "室外货摊：条纹遮阳棚 + 木柱 + 柜台 + 金币堆。"
+      "art": "art/icon-shop.png",
+      "artSize": [320, 320],
+      "notes": "室外货摊：条纹遮阳棚 + 木柱 + 柜台 + 金币堆（矢量层）。art 为整图：绿调雾气里的商人摊位，双秤 + 油桶 + 金币。"
     },
     {
       "id": "icon.rest",
@@ -79,7 +92,9 @@
       "svg": "svg/icon-rest.svg",
       "size": [160, 160],
       "accent": "#FF8A2B",
-      "notes": "露天篝火：明火 + 烧焦原木，无棚无商人，与商店一眼可辨。"
+      "art": "art/icon-rest.png",
+      "artSize": [360, 360],
+      "notes": "露天篝火：明火 + 烧焦原木（矢量层）。art 为整图：石阵上的营火，全场最亮的一张，与商店一眼可辨。"
     },
     {
       "id": "icon.random",
@@ -90,7 +105,9 @@
       "svg": "svg/icon-random.svg",
       "size": [160, 160],
       "accent": "#C9A6FF",
-      "notes": "封印石门 + 发光问号。仅用于未揭示态；揭示后替换为实际类型图标。"
+      "art": "art/icon-random.png",
+      "artSize": [760, 760],
+      "notes": "封印石门 + 发光问号（矢量层）。art 为整图：符文石盘 + 金色发光问号。仅用于未揭示态；揭示后替换为实际类型整图。"
     },
     {
       "id": "icon.boss",
@@ -101,7 +118,9 @@
       "svg": "svg/icon-boss.svg",
       "size": [160, 160],
       "accent": "#B02020",
-      "notes": "巨型带角魔颅 + 獠牙 + 外圈红色余烬环。全图唯一，尺寸远超其他节点。"
+      "art": "art/icon-boss.png",
+      "artSize": [460, 460],
+      "notes": "巨型带角魔颅 + 獠牙 + 外圈红色余烬环（矢量层）。art 为整图：暗色恶魔头骨 + 红色余烬，全图唯一，尺寸远超其他节点。"
     },
     {
       "id": "link.straight",
@@ -112,7 +131,9 @@
       "svg": "svg/link-straight.svg",
       "size": [160, 48],
       "accent": "#A8834A",
-      "notes": "石雕小径 + 微光虚线，水平段。"
+      "art": "art/link-straight.png",
+      "artSize": [165, 24],
+      "notes": "石雕小径 + 微光虚线，水平段（矢量层）。art 为整图：一条暖色发光小径（两端柔化淡出），沿弦拉伸使用。"
     },
     {
       "id": "link.branch",
@@ -123,7 +144,8 @@
       "svg": "svg/link-branch.svg",
       "size": [160, 48],
       "accent": "#A8834A",
-      "notes": "自下向上分叉为左右两支的 Y 形路径。"
+      "art": null,
+      "notes": "自下向上分叉为左右两支的 Y 形路径。尚未接入。"
     },
     {
       "id": "state.available",
@@ -134,6 +156,7 @@
       "svg": "svg/state-available.svg",
       "size": [160, 160],
       "accent": "#D9A441",
+      "art": null,
       "notes": "金色双环，标记当前可进入的节点。"
     },
     {
@@ -145,6 +168,7 @@
       "svg": "svg/state-cleared.svg",
       "size": [160, 160],
       "accent": "#5E5346",
+      "art": null,
       "notes": "深色压暗圆盘 + 灰环，标记已通关节点。"
     },
     {
@@ -156,14 +180,17 @@
       "svg": "svg/state-locked.svg",
       "size": [160, 160],
       "accent": "#7A2E2E",
+      "art": null,
       "notes": "半透明压暗 + 暗红虚线环，标记当前不可达节点。"
     }
   ],
   "_integrationNotes": [
-    "所有 png/svg 相对路径均相对本文件所在目录（assets/node-kit/）。",
+    "所有 png/svg/art 相对路径均相对本文件所在目录（public/spire/）。",
+    "渲染一个节点：有 art 就只画 art（铺满，等比缩放到显示直径）；没有 art 才走 node.base + icon。<type> 的矢量叠加。",
     "node.base 建议做成共享 sprite / 共享节点，不要每个节点各拷贝一份。",
-    "icon.random 是临时态：揭示后直接把 icon 层替换成 icon.normal / icon.elite / icon.shop / icon.rest 之一。",
-    "state.* 覆盖层叠在 icon 之上，已通过 / 锁定两层含压暗填充，必须保证绘制顺序在最后。",
-    "整套资源是矢量源导出，若需要其他尺寸（512/1024）或精灵图集，从 svg/ 重新导出即可，不要放大 png。"
+    "icon.random 是临时态：揭示后直接把整图换成 icon.normal / icon.elite / icon.shop / icon.rest 之一。",
+    "state.* 覆盖层叠在节点之上，已通过 / 锁定两层含压暗填充，必须保证绘制顺序在最后。",
+    "svg/ 是矢量层的源；但 art/ 是位图，没有矢量源，要别的尺寸只能从 art/ 的原图重采样，**不要放大**。",
+    "art/ 里的原生尺寸不统一（320~760），是各自的原始导出尺寸，不代表显示尺寸 —— 显示尺寸由消费方按节点直径决定。"
   ]
 }
