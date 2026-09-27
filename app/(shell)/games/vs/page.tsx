@@ -4,6 +4,7 @@ import {
   createState, update, rollChoices, applyChoice, WEAPON_DEFS,
   type GameState, type Choice, type MetaUpg,
 } from "@/lib/vs-engine"
+import { loadGame, saveGame } from "@/lib/gameSave"
 
 type Phase = "menu" | "play" | "levelup" | "pause" | "over" | "win"
 
@@ -11,13 +12,7 @@ const fmt = (t: number) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${Str
 
 interface Meta { gold: number; upg: MetaUpg }
 const ZERO_UPG: MetaUpg = { hp: 0, sp: 0, pow: 0, mag: 0 }
-function loadMeta(): Meta {
-  if (typeof window === "undefined") return { gold: 0, upg: { ...ZERO_UPG } }
-  try {
-    const m = JSON.parse(localStorage.getItem("c_vs-meta") || "")
-    return { gold: Number(m.gold) || 0, upg: { ...ZERO_UPG, ...m.upg } }
-  } catch { return { gold: 0, upg: { ...ZERO_UPG } } }
-}
+// 旧档迁移 + 读取见挂载时的 loadGame('vs') 加载 effect（不再用 c_vs-meta / c_vs-best）
 const SHOP: { id: keyof MetaUpg; icon: string; name: string; desc: string }[] = [
   { id: "hp", icon: "❤️", name: "坚韧", desc: "初始生命 +15" },
   { id: "sp", icon: "👟", name: "身法", desc: "初始速度 +8" },
@@ -40,8 +35,10 @@ export default function VsPage() {
   const [hud, setHud] = useState({ t: 0, kills: 0, level: 1, hp: 100, maxHp: 100, xp: 0, xpNext: 9, weapons: [] as { icon: string; lv: number }[] })
   const [choices, setChoices] = useState<Choice[]>([])
   const [best, setBest] = useState(0)
-  const [meta, setMeta] = useState<Meta>(() => loadMeta())
+  const [meta, setMeta] = useState<Meta>({ gold: 0, upg: { ...ZERO_UPG } })
   const [earned, setEarned] = useState(0)
+  const metaRef = useRef(meta); metaRef.current = meta
+  const bestRef = useRef(best); bestRef.current = best
 
   const setPhase = (ph: Phase) => { phaseRef.current = ph; setPhaseState(ph) }
   const togglePause = () => {
@@ -66,7 +63,7 @@ export default function VsPage() {
       const cost = (lv + 1) * 40
       if (lv >= 5 || m.gold < cost) return m
       const next = { gold: m.gold - cost, upg: { ...m.upg, [id]: lv + 1 } }
-      localStorage.setItem("c_vs-meta", JSON.stringify(next))
+      saveGame("vs", { gold: next.gold, upg: next.upg, best: bestRef.current ?? 0 })
       return next
     })
   }
@@ -86,7 +83,25 @@ export default function VsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => { setBest(Number(localStorage.getItem("c_vs-best") || 0)) }, [])
+  useEffect(() => {
+    // 迁移旧 localStorage 键（c_vs-meta / c_vs-best）→ 统一 c_game_vs，避免游客丢档
+    try {
+      if (!localStorage.getItem("c_game_vs")) {
+        const oldMeta = localStorage.getItem("c_vs-meta")
+        const oldBest = localStorage.getItem("c_vs-best")
+        if (oldMeta || oldBest) {
+          const m = oldMeta ? JSON.parse(oldMeta) : null
+          localStorage.setItem("c_game_vs", JSON.stringify({ gold: m?.gold ?? 0, upg: m?.upg ?? {}, best: oldBest ? Number(oldBest) : 0 }))
+        }
+      }
+    } catch { /* ignore */ }
+    loadGame<{ gold?: number; upg?: MetaUpg; best?: number }>("vs").then((s) => {
+      if (s) {
+        setMeta({ gold: Number(s.gold) || 0, upg: { ...ZERO_UPG, ...(s.upg || {}) } })
+        if (typeof s.best === "number") setBest(s.best)
+      }
+    }).catch(() => {})
+  }, [])
 
   // 画布尺寸
   useEffect(() => {
@@ -310,22 +325,18 @@ export default function VsPage() {
           s.pending--
           setChoices(rollChoices(s))
           setPhase("levelup")
-        } else if ((s.over || s.win) && !endRef.current) {
-          endRef.current = true
-          const gain = Math.floor(s.kills * 0.5 + s.t + (s.win ? 100 : 0))
-          setEarned(gain)
-          setMeta(m => {
-            const next = { ...m, gold: m.gold + gain }
-            localStorage.setItem("c_vs-meta", JSON.stringify(next))
-            return next
-          })
-          setBest(b => {
-            const nb = Math.max(b, Math.floor(s.t))
-            localStorage.setItem("c_vs-best", String(nb))
-            return nb
-          })
-          setPhase(s.win ? "win" : "over")
-        }
+    } else if ((s.over || s.win) && !endRef.current) {
+      endRef.current = true
+      const gain = Math.floor(s.kills * 0.5 + s.t + (s.win ? 100 : 0))
+      const nb = Math.max(bestRef.current ?? 0, Math.floor(s.t))
+      const nextGold = (metaRef.current?.gold ?? 0) + gain
+      const nextUpg = metaRef.current?.upg ?? ZERO_UPG
+      setEarned(gain)
+      setMeta({ gold: nextGold, upg: nextUpg })
+      setBest(nb)
+      saveGame("vs", { gold: nextGold, upg: nextUpg, best: nb })
+      setPhase(s.win ? "win" : "over")
+    }
         acc += dt
         if (acc > 0.12) {
           acc = 0

@@ -1,6 +1,6 @@
 import RequireAuth from "@/components/RequireAuth"
 
-// /thunder 受保护路由：未登录 → /login（与 /vs 同款）
+// /thunder 受保护路由：是否要求登录由 B 端「游戏登录管理」配置决定（gameCode="thunder"）
 export default function ThunderLayout({ children }: { children: React.ReactNode }) {
-  return <RequireAuth>{children}</RequireAuth>
+  return <RequireAuth gameCode="thunder">{children}</RequireAuth>
 }
