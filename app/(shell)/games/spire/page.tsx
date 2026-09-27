@@ -154,18 +154,20 @@ function StatusBadges({ block, str, weak, vuln }: { block?: number; str?: number
 }
 
 // ---------------- 等比缩放舞台 ----------------
-// 设计基准尺寸：游戏在此尺寸下元素能正常显示。可视区比基准小（手机/矮屏）时，
-// 整体等比缩小，不靠滚动条看内容（滚动条已全局隐藏），地图区域仍各自内部滚动。
+// 设计基准尺寸：游戏在此尺寸下元素能正常显示。舞台「占满」外层游戏容器——
+// 容器比基准大则等比放大填满（受高/宽较小比例约束，不会溢出裁切），比基准小则等比缩小，
+// 不靠滚动条看内容（滚动条已全局隐藏），地图区域仍各自内部滚动。
 const STAGE_BASE_W = 1000
 const STAGE_BASE_H = 860
 // useLayoutEffect 在服务端会报警告，客户端组件用同构版规避（SSR 阶段退化为 useEffect）
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect
 
 /**
- * 把整个爬塔游戏装进一个固定基准尺寸的舞台：
+ * 把整个爬塔游戏装进一个占满外层容器的舞台：
  * - 外层测量「可用内容区」宽高（已扣除顶部导航与移动端底部 tab 的留白）；
- * - 内层按基准尺寸渲染，再 `transform: scale()` 等比缩放到「刚好放得下」(scale ≤ 1)；
- * - 缩放锚点 top center：游戏贴顶、水平居中，缩小后也不产生 body 滚动。
+ * - 内层按基准尺寸渲染，再 `transform: scale()` 等比缩放：scale = min(容器宽/基准宽, 容器高/基准高)，
+ *   即「刚好填满容器且不裁切」——大屏放大、小屏缩小；
+ * - 缩放锚点 top center：游戏贴顶、水平居中，缩放后也不产生 body 滚动。
  */
 function Stage({ children }: { children: React.ReactNode }) {
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -176,8 +178,9 @@ function Stage({ children }: { children: React.ReactNode }) {
       if (!wrap) return
       const r = wrap.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) return
-      const s = Math.min(1, r.width / STAGE_BASE_W, r.height / STAGE_BASE_H)
-      setScale(s)
+      // 去掉上限 1：容器比基准大就等比放大填满，比基准小就等比缩小（min 保证不溢出）
+      const s = Math.min(r.width / STAGE_BASE_W, r.height / STAGE_BASE_H)
+      setScale(s > 0 ? s : 1)
     }
     compute()
     window.addEventListener("resize", compute)
