@@ -1,7 +1,9 @@
 "use client"
 // C 端落地页：玩家中心 · 「游戏中心」子模块页（Hero + 四款游戏卡片，匿名可见）
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
+import { fetchMe, type CUser } from "@/lib/auth"
 
 const GAMES = [
   {
@@ -23,6 +25,14 @@ const GAMES = [
 ]
 
 export default function HomePage() {
+  const [user, setUser] = useState<CUser | null>(null)
+  const [meChecked, setMeChecked] = useState(false)
+
+  // 登录态：仅用于决定 Hero 是否展示「登录」按钮（登录后隐藏）
+  useEffect(() => {
+    fetchMe().then((u) => { setUser(u); setMeChecked(true) })
+  }, [])
+
   return (
     <div className="mx-auto max-w-5xl">
       {/* Hero */}
@@ -35,7 +45,7 @@ export default function HomePage() {
         </p>
         <div className="mt-2 flex items-center gap-3">
           <Link href="/games/trpg" className="btn-primary">开始冒险 <ArrowRight size={15} /></Link>
-          <Link href="/login" className="btn-ghost">登录</Link>
+          {meChecked && !user && <Link href="/login" className="btn-ghost">登录</Link>}
         </div>
       </section>
 
