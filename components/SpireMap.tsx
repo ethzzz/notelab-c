@@ -83,7 +83,7 @@ const VIS = { normal: 64, boss: 96, normalCompact: 44, bossCompact: 66 }
 // 连线是**直弦**渲染：把这张横向小径沿弦长拉伸（preserveAspectRatio="none"）再按弦角旋转。
 // 弦长范围约 116~330，对应比例 5.8~16.5 —— 短边略胖、长边偏瘦，都仍在"一条发光小径"的合理区间。
 // **这张图可由后台「素材资源配置」覆盖**（槽位 link.straight），这里只是内置默认值。
-const LINK_ART = "/games/spire/art/link-straight.png"
+const LINK_ART = "/spire/art/link-straight.png"
 const LINK_THICK = 20        // 桌面
 const LINK_THICK_COMPACT = 15
 // 沿弦两端各外扩一点：把整图柔化的端头压到节点整图之下，避免出现"路径断头"
@@ -184,7 +184,7 @@ const GLYPHS: Record<NodeType, ReactNode> = {
  *  ① 有整图（后台配置的 node.* 槽位 → 否则回落内置 NODE_META[type].art）
  *     → 按该类型的 ART_BOX_K 折算出显示框并居中铺满，外沿烟雾自然溢出成柔光晕；
  *  ② 没有整图（内置只有 event）→ 回落到「石质圆盘 + 自绘线描图标」，圆盘直径就是 size，与①视觉上一样大。
- * 整图是 png，用 <img> 直接引用即可（路径已带 basePath /games），别内联、也别放大。
+ * 整图是 png，用 <img> 直接引用即可（basePath 已移除，路径挂在根路径 /spire/art/...），别内联、也别放大。
  *
  * ⚠️ ART_BOX_K 是按素材包那六张图的构图量的。后台换成构图差异很大的图时，
  * 尺寸归一系数**不会**跟着变 —— 新图可能显得偏大或偏小（尤其几乎满画布构图的图）。

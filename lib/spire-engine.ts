@@ -435,12 +435,12 @@ export const runDepth = (s: { act: number; floor: number }) => (s.act - 1) * MAP
  * icon 字段是历史遗留的 emoji，当前已无人引用，仅为兼容保留。
  */
 export const NODE_META: Record<NodeType, { icon: string; name: string; art: string | null }> = {
-  enemy:  { icon: "⚔️", name: "普通敌人", art: "/games/spire/art/icon-normal.png" },
-  elite:  { icon: "👹", name: "精英敌人", art: "/games/spire/art/icon-elite.png" },
-  boss:   { icon: "👑", name: "BOSS",     art: "/games/spire/art/icon-boss.png" },
-  rest:   { icon: "🔥", name: "补给营地", art: "/games/spire/art/icon-rest.png" },
-  shop:   { icon: "🛒", name: "商店",     art: "/games/spire/art/icon-shop.png" },
-  random: { icon: "❓", name: "未知",     art: "/games/spire/art/icon-random.png" },
+  enemy:  { icon: "⚔️", name: "普通敌人", art: "/spire/art/icon-normal.png" },
+  elite:  { icon: "👹", name: "精英敌人", art: "/spire/art/icon-elite.png" },
+  boss:   { icon: "👑", name: "BOSS",     art: "/spire/art/icon-boss.png" },
+  rest:   { icon: "🔥", name: "补给营地", art: "/spire/art/icon-rest.png" },
+  shop:   { icon: "🛒", name: "商店",     art: "/spire/art/icon-shop.png" },
+  random: { icon: "❓", name: "未知",     art: "/spire/art/icon-random.png" },
   // 素材包没有「事件」整图。若让 event 也指向 icon-random.png，会和未揭示节点完全撞脸，
   // 玩家无法区分"进去触发事件"和"进去才知道是什么"，故 event 沿用自绘问号（art = null）
   event:  { icon: "❓", name: "未知事件", art: null },

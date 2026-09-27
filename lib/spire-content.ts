@@ -22,7 +22,7 @@ export interface SpireCustomContent {
    * 缺失、或玩家所属组没有对应键 → 不做筛选（fail-open，全部角色可选）。
    */
   charAccess?: Record<string, string[]>
-  /** 素材资源槽位取值：{槽位 key: 素材路径}（路径已带 C 端 basePath 前缀 /games） */
+  /** 素材资源槽位取值：{槽位 key: 素材路径}（basePath 已移除，路径挂在根路径；历史 /games 前缀由 spireAssetUrl 归一化剥掉） */
   assets?: SpireAssetMap
   /** 已发布的地图方案文档（含整套多幕节点配置） */
   maps?: { defaultId?: string; packs?: any[] }

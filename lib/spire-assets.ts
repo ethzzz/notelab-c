@@ -25,8 +25,13 @@ export const currentSpireAssets = (): SpireAssetMap => assets
 
 /** 槽位取值：已配置 → 用它；否则回落 fallback（默认空串 = 无素材） */
 export function spireAssetUrl(key: string, fallback = ""): string {
-  const v = assets[key]
-  return typeof v === "string" && v.trim() ? v.trim() : fallback
+  const raw = assets[key]
+  if (typeof raw === "string" && raw.trim()) {
+    // basePath 已移除，素材挂在根路径；后台发布的地址若仍带历史 /games 前缀则剥掉，避免 404
+    const u = raw.trim()
+    return u.startsWith("/games") ? u.slice("/games".length) : u
+  }
+  return fallback
 }
 
 /**

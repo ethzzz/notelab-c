@@ -25,8 +25,8 @@ export type SpireSfx =
 
 /** 外部音频文件覆盖表（默认全空 = 全部走合成）。例：{ hit: "hit.wav" } */
 const FILE_SOURCES: Partial<Record<SpireSfx, string>> = {}
-/** 与 next.config.ts 的 basePath 保持一致；换域名/前缀时同步改这里 */
-const SOUND_DIR = "/games/sounds/"
+/** 与 next.config.ts 保持一致（basePath 已移除，素材挂在根路径）；换域名/前缀时同步改这里 */
+const SOUND_DIR = "/sounds/"
 
 const MUTE_KEY = "spire-sfx-muted"
 const MASTER_VOLUME = 0.5
