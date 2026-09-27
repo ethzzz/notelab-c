@@ -486,9 +486,6 @@ export default function SpirePage() {
   // ---------------- 路线图：选择下一节点前进 ----------------
   if (s.phase === "map") {
     return (
-      {/* 地图阶段：容器高度=视口减去 Shell 顶栏(56px)与内边距，使整页不出现滚动条；
-          地图区域用 flex-1 min-h-0 overflow-auto 独立滚动，顶栏/副标题/图例之外的其它元素不随之滑动。
-          ⚠️ calc() 减号两侧必须留空格（用下划线转义），否则整条 height 失效、容器塌成内容高度、整页滚动。 */}
       <div className="relative flex h-[calc(100dvh_-_9rem)] flex-col overflow-hidden rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none md:h-[calc(100dvh_-_7rem)]">
         {/* 顶栏 */}
         <div className="flex items-center justify-between px-4 py-2 text-sm">
