@@ -91,7 +91,7 @@ const LINK_ART_PAD = 1.14
 const LINK_OPACITY = { base: 0.38, trail: 0.62, active: 1 } as const
 // 图例徽章「看得见的圆」直径。图例必须跟盘面节点用同一份 NodeArt ——
 // 换成矢量线描会和盘面上的"画"对不上号（比如线描的精英是双剑，盘面上却是带角魔颅）
-const LEGEND_VIS = 38
+export const LEGEND_VIS = 38
 
 // 类型配色：低饱和哑光。stroke=图标/描边提亮色，border=圆盘细描边色。
 // 圆盘底色提亮后，描边/图标同步提一档，否则细描边与图标会被更亮的盘面"吃掉"
@@ -188,7 +188,7 @@ const GLYPHS: Record<NodeType, ReactNode> = {
  * 尺寸归一系数**不会**跟着变 —— 新图可能显得偏大或偏小（尤其几乎满画布构图的图）。
  * 这是已知取舍（换图不重新量），要精确对齐得再跑一次 .sync/art-bbox.py 那套度量。
  */
-function NodeArt({ type, size, glyphClass }: { type: NodeType; size: number; glyphClass: string }) {
+export function NodeArt({ type, size, glyphClass }: { type: NodeType; size: number; glyphClass: string }) {
   const art = artForNodeType(type)
   if (art) {
     const box = size * ART_BOX_K[type]
@@ -634,25 +634,6 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
 
         {/* 底部锚点（零高、不可见）：未出发时用它把视口滚到地图底部——起点在第 1 行，也就是最下方 */}
         <div ref={bottomRef} className="pointer-events-none absolute inset-x-0" style={{ bottom: 0, height: 1 }} />
-      </div>
-
-      {/* 图例：一行整图小徽章 + sans 小字，低对比。
-          徽章必须跟盘面上的节点用同一份 NodeArt（同一套 ART_FILL 归一化）——
-          换成矢量线描会和盘面上的"画"对不上号（比如线描的精英是双剑，盘面上却是带角魔颅） */}
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px]"
-        style={{ color: "rgba(255,255,255,.58)" }}>
-        {(["enemy", "elite", "rest", "shop", "event", "random", "boss"] as NodeType[]).map((t) => (
-          <span key={t} className="flex items-center gap-2">
-            {/* 徽章槽位按最长的那张整图留（随机 0.916 这类接近满画布的除外，它们反而更窄） */}
-            <span
-              className="relative flex shrink-0 items-center justify-center"
-              style={{ width: LEGEND_VIS, height: LEGEND_VIS }}
-            >
-              <NodeArt type={t} size={LEGEND_VIS} glyphClass="h-[62%] w-[62%]" />
-            </span>
-            {NODE_META[t].name}
-          </span>
-        ))}
       </div>
     </>
   )

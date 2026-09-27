@@ -7,11 +7,11 @@ import {
   enterNode, restHeal, restUpgrade, usePotion, leaveEvent, nextAct,
   POTION_DEFS, MAX_POTIONS,
   enemyAtkPreview, REMOVE_COST, MAX_FLOOR, TOTAL_ACTS, runDepth, CHARACTERS, characterOf, applyCustomContent,
-  setActMapProvider,
-  type RunState, type Move, type FxEvent, type FxTarget, type PotionKind, type CardCategory,
+  setActMapProvider, NODE_META,
+  type RunState, type Move, type FxEvent, type FxTarget, type PotionKind, type CardCategory, type NodeType,
 } from "@/lib/spire-engine"
 import { SpireCardView as CardView } from "@/components/SpireCardView"
-import SpireMap, { actThemeName, actAccent } from "@/components/SpireMap"
+import SpireMap, { actThemeName, actAccent, NodeArt, LEGEND_VIS } from "@/components/SpireMap"
 import { SpireSprite, hasSpireSprite } from "@/components/SpireSprites"
 import { loadSpireContent } from "@/lib/spire-content"
 import { makePublishedMapProvider } from "@/lib/spire-maps"
@@ -506,6 +506,18 @@ export default function SpirePage() {
            顶栏与副标题是固定兄弟节点、不随之滑动 */}
         <div className="flex-1 min-h-0 overflow-auto px-2 py-3">
           <SpireMap s={s} onEnter={(id) => { unlockSpireAudio(); sfx("select"); enterNode(sp.current!, id); bump() }} />
+        </div>
+        {/* 图例（节点描述）固定在地图阶段底部，shrink-0 使其不随地图滚动 */}
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-white/[.07] bg-[#0b0e1a] px-3 py-2 text-[12px]"
+          style={{ color: "rgba(255,255,255,.58)" }}>
+          {(["enemy", "elite", "rest", "shop", "event", "random", "boss"] as NodeType[]).map((t) => (
+            <span key={t} className="flex items-center gap-2">
+              <span className="relative flex shrink-0 items-center justify-center" style={{ width: LEGEND_VIS, height: LEGEND_VIS }}>
+                <NodeArt type={t} size={LEGEND_VIS} glyphClass="h-[62%] w-[62%]" />
+              </span>
+              {NODE_META[t].name}
+            </span>
+          ))}
         </div>
         {/* 弹层：查看卡组 */}
         {showDeck && (
