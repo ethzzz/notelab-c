@@ -97,7 +97,7 @@ export default function TrpgPlayPage() {
     const sid = new URLSearchParams(window.location.search).get("sid")
     if (sid) {
       start(Number(sid))
-      window.history.replaceState(null, "", "/trpg/play")
+      window.history.replaceState(null, "", "/games/trpg/play")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react"
 
 const TOOLS = [
   {
-    href: "/utils/translate", emoji: "🌐", name: "每日英语翻译练习", tag: "每日更新 · AI 判分",
+    href: "/games/utils/translate", emoji: "🌐", name: "每日英语翻译练习", tag: "每日更新 · AI 判分",
     desc: "每天 0 点更新一组中文句子，分三阶梯逐句翻译成英文，大模型即时批改、纠错与讲解。",
   },
 ]

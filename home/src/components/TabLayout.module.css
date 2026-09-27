@@ -1,0 +1,401 @@
+/* ==========================================================================
+   全屏外壳：左竖直 tab 栏（固定） + 右内容区（自身滚动）
+   ========================================================================== */
+
+.shell {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 支持动态视口单位时改用 dvh，避免移动端地址栏遮挡内容；
+   写成 @supports 独立规则块，防止 CSS 压缩器把 100vh 回退去重丢掉 */
+@supports (height: 100dvh) {
+  .shell {
+    height: 100dvh;
+  }
+}
+
+/* ---------- 侧栏 ---------- */
+.sidebar {
+  flex: 0 0 var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  height: 100%;
+  padding: 1.5rem 1.1rem 1.25rem;
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: 30;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.15rem 0.35rem 0.2rem;
+}
+
+.brandLogo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.8rem;
+  background: var(--grad);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  box-shadow: 0 6px 18px var(--accent-veil), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.brandText strong {
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.brandText small {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawerClose {
+  display: none;
+  margin-left: auto;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+/* ---------- tab 列表 ---------- */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.68rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.tab:hover {
+  background: var(--accent-veil);
+  color: var(--text);
+  transform: translateX(2px);
+}
+
+.tabActive,
+.tabActive:hover {
+  background: var(--grad);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 650;
+  box-shadow: 0 8px 20px var(--accent-veil), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transform: none;
+}
+
+/* 激活态左侧指示条 */
+.tabActive::before {
+  content: "";
+  position: absolute;
+  left: -0.3rem;
+  top: 50%;
+  width: 3px;
+  height: 1.35rem;
+  border-radius: 0 3px 3px 0;
+  background: var(--grad);
+  transform: translateY(-50%);
+}
+
+.tabIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  opacity: 0.92;
+}
+
+.tabLabel {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabBadge {
+  flex: 0 0 auto;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.tab:not(.tabActive) .tabBadge {
+  background: var(--accent-veil);
+  color: var(--accent-ink);
+}
+
+/* ---------- 侧栏页脚 ---------- */
+.sideFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sideLink {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--r-md);
+  border: 1px dashed var(--border-strong);
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  font-weight: 550;
+  transition:
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.sideLink:hover {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  background: var(--accent-veil);
+  transform: translateX(2px);
+}
+
+.sideLinkHint {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+.contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.contactLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+.contactLink:hover {
+  color: var(--accent-ink);
+  background: var(--accent-veil);
+}
+
+.contactLabel {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copy {
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--text-faint);
+  opacity: 0.85;
+  padding: 0 0.4rem;
+}
+
+/* ---------- 右侧主体 ---------- */
+.main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: var(--topbar-h);
+  padding: 0.85rem clamp(1.1rem, 2.6vw, 2.4rem);
+  background: var(--surface);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+}
+
+.burger {
+  display: none;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.topTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topTitle h1 {
+  font-size: clamp(1.05rem, 2vw, 1.32rem);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topTitle p {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topActions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 内容区：唯一的滚动容器 */
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(1.2rem, 2.6vw, 2.2rem) clamp(1.1rem, 2.6vw, 2.4rem) 3rem;
+  animation: rise-in 0.34s var(--ease) both;
+}
+
+/* ---------- 抽屉遮罩（窄屏） ---------- */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(8, 8, 14, 0.44);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fade-in 0.2s var(--ease) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- 响应式：窄屏侧栏降级为抽屉 ---------- */
+@media (max-width: 860px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    flex: 0 0 auto;
+    width: min(19rem, 84vw);
+    transform: translateX(-102%);
+    transition: transform 0.28s var(--ease);
+    background: var(--bg-elev);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebarOpen {
+    transform: none;
+  }
+
+  .drawerClose {
+    display: grid;
+  }
+
+  .burger {
+    display: grid;
+  }
+
+  .content {
+    padding: 1.1rem 1rem 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .topTitle p {
+    display: none;
+  }
+
+  .brandText small {
+    display: none;
+  }
+}

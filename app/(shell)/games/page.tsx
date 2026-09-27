@@ -5,19 +5,19 @@ import { ArrowRight } from "lucide-react"
 
 const GAMES = [
   {
-    href: "/trpg", emoji: "🎲", name: "TRPG 文字冒险", tag: "互动剧情 · 多结局",
+    href: "/games/trpg", emoji: "🎲", name: "TRPG 文字冒险", tag: "互动剧情 · 多结局",
     desc: "挑一个剧本，开始你的冒险。每一次选择，都将左右命运的走向，还有掷骰检定等你挑战。",
   },
   {
-    href: "/spire", emoji: "🗼", name: "爬塔", tag: "卡牌构筑 · Roguelike",
+    href: "/games/spire", emoji: "🗼", name: "爬塔", tag: "卡牌构筑 · Roguelike",
     desc: "选择角色，构筑卡组，一层一层向上挑战。击败敌人、收集卡牌与药水，看看你能爬多高。",
   },
   {
-    href: "/vs", emoji: "🧛", name: "吸血鬼幸存者", tag: "自动战斗 · 生存",
+    href: "/games/vs", emoji: "🧛", name: "吸血鬼幸存者", tag: "自动战斗 · 生存",
     desc: "吸血鬼潮水般涌来，走位、升级、挑选武器强化，在包围中坚持到最后一刻。",
   },
   {
-    href: "/thunder", emoji: "✈️", name: "雷霆战机", tag: "纵版弹幕 · 闯关",
+    href: "/games/thunder", emoji: "✈️", name: "雷霆战机", tag: "纵版弹幕 · 闯关",
     desc: "驾驶战机突入敌阵，弹幕中穿梭躲闪，击败层层首领，守住最后的防线。",
   },
 ]
@@ -34,7 +34,7 @@ export default function HomePage() {
           文字冒险、爬塔、幸存者与雷霆战机的世界。登录后即可开始游玩，进度自动保存，随时随地继续。
         </p>
         <div className="mt-2 flex items-center gap-3">
-          <Link href="/trpg" className="btn-primary">开始冒险 <ArrowRight size={15} /></Link>
+          <Link href="/games/trpg" className="btn-primary">开始冒险 <ArrowRight size={15} /></Link>
           <Link href="/login" className="btn-ghost">登录</Link>
         </div>
       </section>

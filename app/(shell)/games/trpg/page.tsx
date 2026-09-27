@@ -60,7 +60,7 @@ export default function TrpgListPage() {
           <div className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold text-emerald-700"><RotateCcw size={13} /> 你有 {playing.length} 场冒险进行中</div>
           <div className="flex flex-col gap-2">
             {playing.map((p) => (
-              <Link key={p.id} href="/trpg/play"
+              <Link key={p.id} href="/games/trpg/play"
                 className="flex items-center gap-2 rounded-xl border border-emerald-200/70 bg-white/70 px-4 py-2.5 transition-all hover:border-emerald-400 hover:shadow-sm">
                 <span className="text-sm font-medium text-emerald-700">▶ {p.scenario_title}</span>
                 <span className="ml-auto text-[11px] text-zinc-400">{p.steps} 步 · 点击继续</span>
@@ -96,7 +96,7 @@ export default function TrpgListPage() {
                     : <Eye size={14} />}
                   预览
                 </button>
-                <Link href={`/trpg/play?sid=${s.id}`} className="btn-primary flex-1 py-2 text-xs">
+                <Link href={`/games/trpg/play?sid=${s.id}`} className="btn-primary flex-1 py-2 text-xs">
                   <Play size={14} /> 开始游玩
                 </Link>
               </div>

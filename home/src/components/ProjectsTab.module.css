@@ -1,0 +1,295 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.4rem, 3vw, 2.2rem);
+  max-width: var(--content-max);
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  display: flex;
+  align-items: center;
+  gap: clamp(1.1rem, 3vw, 1.9rem);
+  padding: clamp(1.3rem, 3vw, 1.9rem);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: rise-in 0.4s var(--ease) both;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Hero 右侧装饰光斑 */
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  top: -5rem;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent-veil), transparent 62%);
+  pointer-events: none;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: clamp(3.6rem, 8vw, 4.8rem);
+  height: clamp(3.6rem, 8vw, 4.8rem);
+  border-radius: 50%;
+  background: var(--grad);
+  color: #fff;
+  font-size: clamp(1.5rem, 3.4vw, 1.95rem);
+  font-weight: 800;
+  box-shadow:
+    0 0 0 0.4rem var(--accent-veil),
+    0 14px 30px var(--accent-veil-2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.heroText {
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.heroTitle {
+  font-size: clamp(1.25rem, 3.2vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.tagline {
+  margin-top: 0.4rem;
+  color: var(--text-soft);
+  font-size: clamp(0.85rem, 1.6vw, 0.96rem);
+  line-height: 1.6;
+  max-width: 46rem;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.95rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tags li {
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  background: var(--accent-veil);
+  border: 1px solid transparent;
+  color: var(--accent-ink);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.tags li:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* ---------- 项目卡 ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: clamp(0.85rem, 1.6vw, 1.15rem);
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.15rem 1.2rem 1.05rem;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  isolation: isolate;
+  animation: rise-in 0.42s var(--ease) both;
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+/* 卡片顶部色条（按项目 tone 上色） */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--tone, var(--accent)), transparent 78%);
+  opacity: 0.75;
+  transition: opacity var(--dur) var(--ease);
+}
+
+/* hover 光晕 */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /* 回退：不支持 color-mix 的老浏览器用纯色光晕 */
+  background: radial-gradient(22rem 12rem at 100% 0%, var(--accent-veil), transparent 62%);
+  background: radial-gradient(
+    22rem 12rem at 100% 0%,
+    color-mix(in srgb, var(--tone, var(--accent)) 14%, transparent),
+    transparent 62%
+  );
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+.card:hover,
+.card:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--tone, var(--accent)) 42%, var(--border));
+  box-shadow: var(--shadow-lg);
+}
+
+.card:hover::after,
+.card:focus-visible::after {
+  opacity: 1;
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.cardEmoji {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-md);
+  background: var(--accent-veil);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--tone, var(--accent)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone, var(--accent)) 24%, transparent);
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform var(--dur) var(--ease);
+}
+
+.card:hover .cardEmoji {
+  transform: scale(1.07) rotate(-3deg);
+}
+
+.cardRepo {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  padding: 0.14rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent-veil);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* 卡片底行：CTA + 仓库名 */
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.35rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border);
+}
+
+.cardName {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardDesc {
+  flex: 1;
+  font-size: 0.82rem;
+  line-height: 1.62;
+  color: var(--text-soft);
+}
+
+.cardCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: var(--accent-ink);
+  color: color-mix(in srgb, var(--tone, var(--accent)) 78%, var(--text));
+}
+
+.cardCta svg {
+  transition: transform var(--dur) var(--ease);
+}
+
+.card:hover .cardCta svg {
+  transform: translateX(3px);
+}
+
+.cardGo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease),
+    color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+.card:hover .cardGo,
+.card:focus-visible .cardGo {
+  opacity: 1;
+  transform: none;
+  color: var(--accent-ink);
+  background: var(--accent-veil);
+}
+
+@media (max-width: 640px) {
+  .hero {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .tags {
+    justify-content: center;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

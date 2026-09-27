@@ -1,0 +1,211 @@
+/* 工具卡网格（tools.html 右侧内容区） */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: clamp(0.8rem, 1.5vw, 1.1rem);
+  max-width: var(--content-max);
+}
+
+.empty {
+  padding: 2rem 1rem;
+  color: var(--text-faint);
+  font-size: 0.9rem;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem 1.15rem 1rem;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  isolation: isolate;
+  animation: rise-in 0.4s var(--ease) both;
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+/* 顶部色条 */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--tone, var(--accent)), transparent 76%);
+  opacity: 0.72;
+  transition: opacity var(--dur) var(--ease);
+}
+
+/* hover 光晕 */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  /* 回退：不支持 color-mix 的老浏览器用纯色光晕 */
+  background: radial-gradient(20rem 11rem at 100% 0%, var(--accent-veil), transparent 60%);
+  background: radial-gradient(
+    20rem 11rem at 100% 0%,
+    color-mix(in srgb, var(--tone, var(--accent)) 13%, transparent),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+}
+
+a.card:hover,
+a.card:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  border-color: color-mix(in srgb, var(--tone, var(--accent)) 40%, var(--border));
+  box-shadow: var(--shadow-lg);
+}
+
+a.card:hover::before,
+a.card:focus-visible::before {
+  opacity: 1;
+}
+
+a.card:hover::after,
+a.card:focus-visible::after {
+  opacity: 1;
+}
+
+/* 占位（未上线）卡片：去饱和、禁止跳转观感 */
+.cardSoon {
+  border-style: dashed;
+  background: var(--surface);
+  cursor: default;
+}
+
+.cardSoon::before {
+  opacity: 0.35;
+}
+
+.cardSoon .cardEmoji {
+  filter: grayscale(0.55);
+  opacity: 0.85;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cardEmoji {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-md);
+  background: var(--accent-veil);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--tone, var(--accent)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone, var(--accent)) 24%, transparent);
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform var(--dur) var(--ease);
+}
+
+a.card:hover .cardEmoji {
+  transform: scale(1.07) rotate(-3deg);
+}
+
+.cardGo {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease),
+    color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+a.card:hover .cardGo,
+a.card:focus-visible .cardGo {
+  opacity: 1;
+  transform: none;
+  color: var(--accent-ink);
+  background: var(--accent-veil);
+}
+
+.soonTag {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-veil);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.cardName {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.cardDesc {
+  flex: 1;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+
+.cardFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.3rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border);
+}
+
+.catName {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--accent-ink);
+  color: color-mix(in srgb, var(--tone, var(--accent)) 72%, var(--text-soft));
+}
+
+.href {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
+.soonHint {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

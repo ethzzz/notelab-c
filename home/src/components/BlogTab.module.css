@@ -1,0 +1,344 @@
+/* 「文章」tab：RSS 列表 + 骨架 + 兜底 */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: var(--content-max);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loading {
+  font-size: 0.85rem;
+  color: var(--text-faint);
+  padding: 0.1rem 0.2rem 0.35rem;
+}
+
+.item {
+  animation: rise-in 0.4s var(--ease) both;
+}
+
+/* ---------- 文章行 ---------- */
+.post {
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  padding: 0.95rem 1.1rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+/* 左侧强调条：hover 时亮起 */
+.post::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--grad);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.post:hover,
+.post:focus-visible {
+  transform: translateX(4px);
+  border-color: var(--accent);
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.post:hover::before,
+.post:focus-visible::before {
+  opacity: 1;
+}
+
+.postDate {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-top: 0.18rem;
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.postBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.postTitle {
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease);
+}
+
+.post:hover .postTitle {
+  color: var(--accent-ink);
+}
+
+.postDesc {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.postGo {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--r-sm);
+  color: var(--text-faint);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease),
+    color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+}
+
+.post:hover .postGo,
+.post:focus-visible .postGo {
+  opacity: 1;
+  transform: none;
+  color: var(--accent-ink);
+  background: var(--accent-veil);
+}
+
+/* ---------- 列表页脚 ---------- */
+.foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.55rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--border-strong);
+}
+
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  border-radius: 999px;
+  background: var(--grad);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 650;
+  box-shadow: 0 6px 16px var(--accent-veil);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.more:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px var(--accent-veil-2);
+}
+
+.source {
+  font-size: 0.74rem;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+.source code {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.1rem 0.38rem;
+  border-radius: var(--r-xs);
+  background: var(--accent-veil);
+  color: var(--accent-ink);
+}
+
+/* ---------- 骨架屏 ---------- */
+.skRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+  padding: 0.95rem 1.1rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  animation: rise-in 0.4s var(--ease) both;
+}
+
+.skDate,
+.skTitle,
+.skDesc {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--border) 25%,
+    var(--accent-veil) 37%,
+    var(--border) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skDate {
+  flex: 0 0 auto;
+  width: 5.2rem;
+  height: 0.72rem;
+  margin-top: 0.28rem;
+}
+
+.skBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.skTitle {
+  height: 0.86rem;
+  width: 58%;
+}
+
+.skDesc {
+  height: 0.72rem;
+  width: 86%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ---------- 兜底 ---------- */
+.fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
+  max-width: 30rem;
+  padding: 1.6rem 1.5rem;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  animation: rise-in 0.36s var(--ease) both;
+}
+
+.fallbackIcon {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: var(--r-md);
+  background: var(--accent-veil);
+  font-size: 1.25rem;
+}
+
+.fallbackText {
+  font-size: 0.9rem;
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.fallbackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent-ink);
+  font-weight: 650;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.fallbackLink:hover {
+  border-bottom-color: var(--accent);
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
+}
+
+.retry:hover {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  background: var(--accent-veil);
+}
+
+/* ---------- 窄屏 ---------- */
+@media (max-width: 640px) {
+  .post {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .postDate {
+    order: 2;
+    width: 100%;
+    padding-top: 0;
+  }
+
+  .postBody {
+    order: 1;
+  }
+
+  .postTitle,
+  .postDesc {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .postGo {
+    order: 1;
+    margin-left: auto;
+  }
+
+  .source {
+    margin-left: 0;
+    width: 100%;
+  }
+}

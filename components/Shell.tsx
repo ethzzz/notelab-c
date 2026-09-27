@@ -14,16 +14,16 @@ import { LogOut, User as UserIcon, Gamepad2, Languages, ExternalLink } from "luc
 // 移动端底部 Tab（桌面导航为 游戏中心 悬浮菜单 + 返回主页）
 const NAV = [
   { href: "/", name: "游戏中心", icon: Gamepad2 },
-  { href: "/utils/translate", name: "每日翻译", icon: Languages },
+  { href: "/games/utils/translate", name: "每日翻译", icon: Languages },
 ]
 
 // 游戏中心子模块的子菜单（悬停展开）：概览 + 四款游戏
 const GAME_MENU: HoverMenuItem[] = [
-  { href: "/", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮" },
-  { href: "/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
-  { href: "/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
-  { href: "/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
-  { href: "/thunder", name: "雷霆战机", desc: "纵版弹幕 · 闯关", emoji: "✈️" },
+  { href: "/games", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮" },
+  { href: "/games/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
+  { href: "/games/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
+  { href: "/games/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
+  { href: "/games/thunder", name: "雷霆战机", desc: "纵版弹幕 · 闯关", emoji: "✈️" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {

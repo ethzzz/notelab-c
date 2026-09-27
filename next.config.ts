@@ -1,13 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // C 端挂在统一入口的 /games 前缀下（nginx ^~ /games -> :3010，保留前缀，同 B 端 /admin 模式）；
-  // 根路径 / 让位给个人主页（/var/www/home 静态站）
-  basePath: "/games",
+  // C 端（notelab-c）现在是统一消费者入口：根路径 / 是个人主页，/games 是游戏中心。
+  // 去掉 basePath，让游戏路由落到 /games/*、首页落到 /；其余前缀（/blog /vs /thunder /ailab /admin /api）由 nginx 各自处理。
   async redirects() {
     return [
-      // 每日翻译迁入「工具」类子模块：旧 /translate 永久跳到 /utils/translate（source/destination 相对 basePath）
-      { source: "/translate", destination: "/utils/translate", permanent: true },
+      // 每日翻译迁到游戏中心「工具」子模块：旧 /translate 永久跳到 /games/utils/translate
+      { source: "/translate", destination: "/games/utils/translate", permanent: true },
     ];
   },
 };
