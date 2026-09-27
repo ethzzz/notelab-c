@@ -5,16 +5,22 @@ export type GameAccessEntry = { requireLogin?: boolean }
 export type GameAccessMap = Record<string, GameAccessEntry>
 
 let cache: GameAccessMap | null = null
+let cacheAt = 0
+// 客户端缓存窗口：与服务端 UiConfigService 30s 缓存对齐。
+// 服务端 save() 会立即 invalidate，故 B 端保存后最迟 30s 内 C 端即生效（无需整页刷新）。
+const CACHE_MS = 30_000
 
-/** 读取「哪些游戏需要登录才能玩」配置（匿名端点，服务端 30s 缓存） */
+/** 读取「哪些游戏需要登录才能玩」配置（匿名端点，服务端保存即失效） */
 export async function fetchGameAccess(): Promise<GameAccessMap> {
-  if (cache) return cache
+  const now = Date.now()
+  if (cache && now - cacheAt < CACHE_MS) return cache
   try {
     const res = await apiJson<{ game_access?: GameAccessMap }>("/api/c/game/access")
     cache = res?.game_access && typeof res.game_access === "object" ? res.game_access : {}
   } catch {
-    cache = {}
+    cache = cache ?? {}
   }
+  cacheAt = now
   return cache
 }
 
