@@ -9,7 +9,9 @@ import { artForNodeType, spireAssetUrl, withBgImage, LINK_SLOT, BG_MAP_SLOT } fr
 
 // 桌面基准尺寸；小屏（≤640px）走 compact 覆盖：收窄行号列/节点/行高并隐藏行号，
 // 保证 6 列节点在窄屏不溢出列宽、不被容器裁切（语义由下方图例 + title 兜底）
-const MAX_W = 940
+// 地图最大宽度：抬高上限让宽屏下地图铺满容器宽度（舞台已按容器宽高比自适应铺满，
+// 地图若被 940 卡住会在宽屏左右留边）。2400 覆盖到 2560 级显示器，更宽则居中收尾。
+const MAX_W = 2400
 
 // 确定性伪随机（同 id 恒同值）：节点散列抖动用，避免重渲染时位置跳动。
 // 收尾用 murmur3 fmix32 雪崩混淆：节点 id 仅末位不同（r2c0/r2c1）也能散开，

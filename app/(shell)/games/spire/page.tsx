@@ -165,22 +165,25 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 /**
  * 把整个爬塔游戏装进一个占满外层容器的舞台：
  * - 外层测量「可用内容区」宽高（已扣除顶部导航与移动端底部 tab 的留白）；
- * - 内层按基准尺寸渲染，再 `transform: scale()` 等比缩放：scale = min(容器宽/基准宽, 容器高/基准高)，
- *   即「刚好填满容器且不裁切」——大屏放大、小屏缩小；
+ * - 设计盒取「容器与最小基准的较大者（逐维）」：容器 ≥ 基准（宽屏）时盒子=容器、scale=1 →
+ *   直接铺满整个容器（宽高都占满、不留边）；容器 < 基准（小屏）时盒子=基准、等比缩小到容器
+ *   （min 保证不溢出裁切）。即基准宽高比随容器自适应，宽屏下不再左右留边。
  * - 缩放锚点 top center：游戏贴顶、水平居中，缩放后也不产生 body 滚动。
  */
 function Stage({ children }: { children: React.ReactNode }) {
   const wrapRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
+  // box = 实际渲染的舞台尺寸；scale = 缩放到容器的比例
+  const [st, setSt] = useState({ scale: 1, w: STAGE_BASE_W, h: STAGE_BASE_H })
   useIsoLayoutEffect(() => {
     const compute = () => {
       const wrap = wrapRef.current
       if (!wrap) return
       const r = wrap.getBoundingClientRect()
       if (r.width <= 0 || r.height <= 0) return
-      // 去掉上限 1：容器比基准大就等比放大填满，比基准小就等比缩小（min 保证不溢出）
-      const s = Math.min(r.width / STAGE_BASE_W, r.height / STAGE_BASE_H)
-      setScale(s > 0 ? s : 1)
+      const w = Math.max(r.width, STAGE_BASE_W)
+      const h = Math.max(r.height, STAGE_BASE_H)
+      const s = Math.min(r.width / w, r.height / h)
+      setSt({ scale: s > 0 ? s : 1, w, h })
     }
     compute()
     window.addEventListener("resize", compute)
@@ -195,7 +198,7 @@ function Stage({ children }: { children: React.ReactNode }) {
     <div ref={wrapRef}
       className="spire-stage-wrap relative flex w-full items-start justify-center overflow-hidden rounded-2xl h-[calc(100dvh_-_9rem)] md:h-[calc(100dvh_-_7rem)]">
       <div className="spire-stage"
-        style={{ width: STAGE_BASE_W, height: STAGE_BASE_H, transform: `scale(${scale})`, transformOrigin: "top center" }}>
+        style={{ width: st.w, height: st.h, transform: `scale(${st.scale})`, transformOrigin: "top center" }}>
         {children}
       </div>
     </div>
