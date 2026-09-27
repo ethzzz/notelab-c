@@ -13,13 +13,13 @@ import { LogOut, User as UserIcon, Gamepad2, Languages, ExternalLink } from "luc
 
 // 移动端底部 Tab（桌面导航为 游戏中心 悬浮菜单 + 返回主页）
 const NAV = [
-  { href: "/", name: "游戏中心", icon: Gamepad2 },
+  { href: "/games", name: "游戏中心", icon: Gamepad2 },
   { href: "/games/utils/translate", name: "每日翻译", icon: Languages },
 ]
 
 // 游戏中心子模块的子菜单（悬停展开）：概览 + 四款游戏
 const GAME_MENU: HoverMenuItem[] = [
-  { href: "/games", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮" },
+  { href: "/games", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮", exact: true },
   { href: "/games/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
   { href: "/games/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
   { href: "/games/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
@@ -68,7 +68,12 @@ export default function Shell({ children }: { children: ReactNode }) {
   const bgStyle = resolveBgStyle(bg)
   const dark = !!themeById(bg?.theme)?.dark
   const avatarChar = String(user?.nickname || user?.username || "?").trim().charAt(0).toUpperCase()
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href))
+  // 移动端 tab 高亮：/games 为游戏中心，需排除其下的 /games/utils 工具页（避免与「每日翻译」重复高亮）
+  const isActive = (href: string) => {
+    if (href === "/games") return pathname === "/games" || (pathname.startsWith("/games/") && !pathname.startsWith("/games/utils"))
+    if (href === "/") return pathname === "/"
+    return pathname.startsWith(href)
+  }
 
   return (
     <div className={`min-h-screen ${dark ? "theme-dark" : ""}`} style={bgStyle}>

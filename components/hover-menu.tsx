@@ -10,6 +10,8 @@ export type HoverMenuItem = {
   name: string
   desc?: string
   emoji?: string
+  /** 仅精确匹配：用于「章节首页」这类 href 是其它子项前缀的条目，避免父路径被误高亮 */
+  exact?: boolean
 }
 
 export default function HoverMenu({ label, icon, items, pathname, dark }: {
@@ -21,8 +23,11 @@ export default function HoverMenu({ label, icon, items, pathname, dark }: {
 }) {
   const [open, setOpen] = useState(false)
   const timer = useRef<number | null>(null)
+  // 子项命中当前路由：exact 条目只认精确相等；其余认自身或下级路径
+  const isItemActive = (it: HoverMenuItem) =>
+    it.exact ? pathname === it.href : pathname === it.href || pathname.startsWith(it.href + "/")
   // 任一子项命中当前路由 → 主 tab 高亮
-  const anyActive = items.some((it) => pathname === it.href || pathname.startsWith(it.href + "/"))
+  const anyActive = items.some(isItemActive)
 
   function show() {
     if (timer.current) { window.clearTimeout(timer.current); timer.current = null }
@@ -50,7 +55,7 @@ export default function HoverMenu({ label, icon, items, pathname, dark }: {
       <div className={`absolute left-0 top-full z-[70] pt-2 transition-opacity duration-150 ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}>
         <div className={`w-64 rounded-2xl border p-1.5 shadow-xl backdrop-blur-xl ${dark ? "bg-[#171722]/95 border-white/10" : "bg-white/95 border-black/5"}`}>
           {items.map((it) => {
-            const active = pathname === it.href || pathname.startsWith(it.href + "/")
+            const active = isItemActive(it)
             return (
               <Link key={it.href} href={it.href}
                 className={`flex items-start gap-2.5 rounded-xl px-3 py-2.5 transition ${active
