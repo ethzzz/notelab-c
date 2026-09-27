@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import {
   newRun, playCard, endTurn, useSkill, resolveEcho, resolveScry, echoCopyCard,
   chooseReward, buyCard, removeCard, leaveShop, buyPotion,
@@ -149,6 +149,52 @@ function StatusBadges({ block, str, weak, vuln }: { block?: number; str?: number
       {!!str && <StatusBadge key={`s${str}`} cls="bg-amber-500/25 text-amber-200" tip={STATUS_TIPS.str(str)}>💪 {str}</StatusBadge>}
       {!!weak && <StatusBadge key={`w${weak}`} cls="bg-fuchsia-500/25 text-fuchsia-200" tip={STATUS_TIPS.weak(weak)}>🌀 虚弱 {weak}</StatusBadge>}
       {!!vuln && <StatusBadge key={`v${vuln}`} cls="bg-orange-500/25 text-orange-200" tip={STATUS_TIPS.vuln(vuln)}>🎯 易伤 {vuln}</StatusBadge>}
+    </div>
+  )
+}
+
+// ---------------- 等比缩放舞台 ----------------
+// 设计基准尺寸：游戏在此尺寸下元素能正常显示。可视区比基准小（手机/矮屏）时，
+// 整体等比缩小，不靠滚动条看内容（滚动条已全局隐藏），地图区域仍各自内部滚动。
+const STAGE_BASE_W = 1000
+const STAGE_BASE_H = 860
+// useLayoutEffect 在服务端会报警告，客户端组件用同构版规避（SSR 阶段退化为 useEffect）
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect
+
+/**
+ * 把整个爬塔游戏装进一个固定基准尺寸的舞台：
+ * - 外层测量「可用内容区」宽高（已扣除顶部导航与移动端底部 tab 的留白）；
+ * - 内层按基准尺寸渲染，再 `transform: scale()` 等比缩放到「刚好放得下」(scale ≤ 1)；
+ * - 缩放锚点 top center：游戏贴顶、水平居中，缩小后也不产生 body 滚动。
+ */
+function Stage({ children }: { children: React.ReactNode }) {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+  useIsoLayoutEffect(() => {
+    const compute = () => {
+      const wrap = wrapRef.current
+      if (!wrap) return
+      const r = wrap.getBoundingClientRect()
+      if (r.width <= 0 || r.height <= 0) return
+      const s = Math.min(1, r.width / STAGE_BASE_W, r.height / STAGE_BASE_H)
+      setScale(s)
+    }
+    compute()
+    window.addEventListener("resize", compute)
+    let ro: ResizeObserver | undefined
+    if (typeof ResizeObserver !== "undefined" && wrapRef.current) {
+      ro = new ResizeObserver(compute)
+      ro.observe(wrapRef.current)
+    }
+    return () => { window.removeEventListener("resize", compute); ro?.disconnect() }
+  }, [])
+  return (
+    <div ref={wrapRef}
+      className="spire-stage-wrap relative flex w-full items-start justify-center overflow-hidden rounded-2xl h-[calc(100dvh_-_9rem)] md:h-[calc(100dvh_-_7rem)]">
+      <div className="spire-stage"
+        style={{ width: STAGE_BASE_W, height: STAGE_BASE_H, transform: `scale(${scale})`, transformOrigin: "top center" }}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -321,7 +367,8 @@ export default function SpirePage() {
   // ---------------- 角色选择 ----------------
   if (!s && pickOpen) {
     return (
-      <div style={homeBgStyle} className="relative h-[calc(100vh-6.5rem)] overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
+      <Stage>
+      <div style={homeBgStyle} className="relative h-full overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
         <div className="mx-auto flex max-w-3xl flex-col items-center px-4 py-8">
           <h2 className="text-2xl font-black text-white">选择你的角色</h2>
           <p className="mt-1 text-xs text-zinc-400">每个角色拥有独特的被动与主动技能</p>
@@ -367,13 +414,15 @@ export default function SpirePage() {
           <button onClick={() => { sfx("select"); setPickOpen(false) }} className="mt-6 rounded-xl border border-white/20 px-6 py-2 text-sm text-zinc-300 hover:bg-white/10">返回菜单</button>
         </div>
       </div>
+      </Stage>
     )
   }
 
   // ---------------- 主菜单 ----------------
   if (!s) {
     return (
-      <div style={homeBgStyle} className="relative h-[calc(100vh-6.5rem)] overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
+      <Stage>
+      <div style={homeBgStyle} className="relative h-full overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
         <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-10 text-center">
           <div className="text-6xl">🗼</div>
           <h1 className="mt-2 text-3xl font-black text-white">爬塔尖塔</h1>
@@ -400,6 +449,7 @@ export default function SpirePage() {
           <div className="mt-4 text-[11px] text-zinc-500">状态说明：💪力量 提升攻击 · 🌀虚弱 造成伤害 -25% · 🎯易伤 受到伤害 +50%</div>
         </div>
       </div>
+      </Stage>
     )
   }
 
@@ -410,7 +460,8 @@ export default function SpirePage() {
     const cleared = s.act - 1
     const isFinalNext = s.act >= s.totalActs
     return (
-      <div className="relative flex h-[calc(100vh-6.5rem)] flex-col items-center justify-center overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] px-4 text-center select-none">
+      <Stage>
+      <div className="relative flex h-full flex-col items-center justify-center overflow-y-auto rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] px-4 text-center select-none">
         <div className="text-6xl">🏆</div>
         <h2 className="mt-3 text-3xl font-black text-amber-300">第 {cleared} 幕通关！</h2>
         <p className="mt-2 text-sm text-zinc-300">
@@ -444,6 +495,7 @@ export default function SpirePage() {
           继续前进 ▶
         </button>
       </div>
+      </Stage>
     )
   }
 
@@ -452,7 +504,8 @@ export default function SpirePage() {
     const win = s.phase === "win"
     const depth = runDepth(s)
     return (
-      <div className="relative flex h-[calc(100vh-6.5rem)] flex-col items-center justify-center rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] px-4 text-center select-none">
+      <Stage>
+      <div className="relative flex h-full flex-col items-center justify-center rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] px-4 text-center select-none">
         <div className="text-6xl">{win ? "👑" : "💀"}</div>
         <h2 className={`mt-3 text-3xl font-black ${win ? "text-amber-300" : "text-rose-400"}`}>{win ? "登顶成功！" : "止步于此"}</h2>
         <p className="mt-2 text-sm text-zinc-400">
@@ -471,6 +524,7 @@ export default function SpirePage() {
           <button onClick={backToMenu} className="rounded-xl border border-white/20 px-6 py-2.5 font-bold text-zinc-200 hover:bg-white/10">返回菜单</button>
         </div>
       </div>
+      </Stage>
     )
   }
 
@@ -486,7 +540,8 @@ export default function SpirePage() {
   // ---------------- 路线图：选择下一节点前进 ----------------
   if (s.phase === "map") {
     return (
-      <div className="relative flex h-[calc(100dvh_-_9rem)] flex-col overflow-hidden rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none md:h-[calc(100dvh_-_7rem)]">
+      <Stage>
+      <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
         {/* 顶栏 */}
         <div className="flex items-center justify-between px-4 py-2 text-sm">
           <div className="flex items-center gap-3 text-zinc-200">
@@ -528,11 +583,13 @@ export default function SpirePage() {
           </Overlay>
         )}
       </div>
+      </Stage>
     )
   }
 
   return (
-    <div key={screenShake} className="relative flex h-[calc(100vh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-zinc-300/60 select-none"
+    <Stage>
+    <div key={screenShake} className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-300/60 select-none"
       style={{ background: `linear-gradient(180deg, ${accent}26 0%, #0b0e1a 62%)`, ...(screenShake ? { animation: "spire-screenshake .4s ease" } : {}) }}>
       <style>{`
         @keyframes spire-float-up { 0% { opacity:0; transform:translateY(8px) scale(.7) } 18% { opacity:1; transform:translateY(0) scale(1.2) } 70% { opacity:1 } 100% { opacity:0; transform:translateY(-48px) scale(1) } }
@@ -920,6 +977,7 @@ export default function SpirePage() {
         </Overlay>
       )}
     </div>
+    </Stage>
   )
 }
 

@@ -63,6 +63,18 @@
 ::-webkit-scrollbar-thumb:hover { background: rgba(120,120,135,0.55); }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* ===== 爬塔游戏舞台：隐藏一切滚动条（整体等比缩放，不靠滚动条看内容） ===== */
+/* 仅作用于 .spire-stage 子树，不影响站点其它页面的滚动条 */
+.spire-stage,
+.spire-stage * {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* 旧版 Edge */
+}
+.spire-stage::-webkit-scrollbar,
+.spire-stage *::-webkit-scrollbar {
+  display: none;                /* WebKit（Chrome / Edge / Safari） */
+}
+
 /* —— AI 回复打字机光标 —— */
 .typing-cursor { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: -0.15em; background: currentColor; border-radius: 1px; animation: typing-blink 1s steps(1) infinite; }
 @keyframes typing-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }

@@ -319,6 +319,10 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
       const container = containerRef.current
       if (!container) return
       const cr = container.getBoundingClientRect()
+      // 舞台可能用 transform: scale() 整体等比缩放：getBoundingClientRect 返回的是「缩放后」的视觉坐标，
+      // 而连线要画进 SVG 的「设计坐标」(SVG 随舞台一起缩放)。用 视觉宽 / 布局宽 反推缩放比 k，
+      // 把节点中心的视觉偏移除回设计坐标，连线才能始终和节点圆盘对齐。
+      const k = cr.width / (container.offsetWidth || cr.width) || 1
       const out: typeof edges = []
       for (const n of allNodes) {
         const a = circleRefs.current[n.id]
@@ -328,10 +332,10 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           if (!a || !b) continue
           const ar = a.getBoundingClientRect()
           const br = b.getBoundingClientRect()
-          const x1 = ar.left + ar.width / 2 - cr.left
-          const y1 = ar.top + ar.height / 2 - cr.top
-          const x2 = br.left + br.width / 2 - cr.left
-          const y2 = br.top + br.height / 2 - cr.top
+          const x1 = (ar.left + ar.width / 2 - cr.left) / k
+          const y1 = (ar.top + ar.height / 2 - cr.top) / k
+          const x2 = (br.left + br.width / 2 - cr.left) / k
+          const y2 = (br.top + br.height / 2 - cr.top) / k
           let state: "base" | "trail" | "active" = "base"
           if (visited.has(n.id) && visited.has(tid)) state = "trail"
           else if (pos === n.id && reach.has(tid)) state = "active"
