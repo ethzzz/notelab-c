@@ -192,6 +192,7 @@ const GLYPHS: Record<NodeType, ReactNode> = {
  */
 export function NodeArt({ type, size, glyphClass }: { type: NodeType; size: number; glyphClass: string }) {
   const art = artForNodeType(type)
+  const glow = TYPE_STYLE[type].stroke
   if (art) {
     const box = size * ART_BOX_K[type]
     return (
@@ -199,7 +200,11 @@ export function NodeArt({ type, size, glyphClass }: { type: NodeType; size: numb
         src={art} alt="" aria-hidden="true" draggable={false}
         className="pointer-events-none absolute left-1/2 top-1/2"
         // maxWidth:none —— Tailwind preflight 的 img{max-width:100%} 会把溢出的雾边裁回 size
-        style={{ width: box, height: box, marginLeft: -box / 2, marginTop: -box / 2, maxWidth: "none" }}
+        // 增亮点：按类型色 drop-shadow 发光 + 轻微提亮，让暗色整图在暗背景上跳出来（不破坏地牢氛围）
+        style={{
+          width: box, height: box, marginLeft: -box / 2, marginTop: -box / 2, maxWidth: "none",
+          filter: `drop-shadow(0 0 10px ${glow}) brightness(1.15)`,
+        }}
       />
     )
   }
@@ -211,7 +216,8 @@ export function NodeArt({ type, size, glyphClass }: { type: NodeType; size: numb
         background: DISC_BG,
         border: `1px solid ${TYPE_STYLE[type].border}`,
         color: TYPE_STYLE[type].stroke,
-        boxShadow: "inset 0 1px 2px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.035)",
+        // 增亮点：同色外发光，让圆盘节点（event 回落）也跳出来
+        boxShadow: `inset 0 1px 2px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.035), 0 0 16px ${glow}66`,
       }}
     >
       <Glyph type={type} className={glyphClass} />
@@ -253,10 +259,6 @@ function SpireEmblem({ className, color }: { className?: string; color: string }
   )
 }
 
-// 行号罗马数字（仅节奏提示，不抢视觉）
-// 层数已改为每幕 16 层，罗马数字要跟到 XVI；再往上（自定义层数）由 ?? 兜底成阿拉伯数字
-const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
-  "XI", "XII", "XIII", "XIV", "XV", "XVI"]
 
 export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: string) => void }) {
   const rows = mapRows(s)
@@ -282,7 +284,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
   // BOSS 圆盘 96px + 外圈虚环 118px 几乎占满一行，顶部余量不足会被容器 overflow-hidden 裁掉
   const PAD_TOP = compact ? 52 : 92
   const PAD_BOTTOM = compact ? 36 : 64
-  const LABEL_COL_W = compact ? 26 : 56
+  const LABEL_COL_W = compact ? 12 : 24
   // 图面高需容纳全部行：PAD_TOP + 每行 ROW_H + PAD_BOTTOM，
   // 少算一行会导致首行被容器 overflow-hidden 裁切
   const containerHeight = PAD_TOP + totalRows * ROW_H + PAD_BOTTOM
@@ -378,8 +380,6 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
     height: containerHeight,
   }
 
-  // BOSS 行此刻在最上（地图自下而上）：分隔线画在它的**下沿**，把"塔顶"从普通层里拎出来（BOSS 行恒为 1 个节点）
-  const bossRowBottom = PAD_TOP + ROW_H
   const linkThick = compact ? LINK_THICK_COMPACT : LINK_THICK
   // 连线整图可被后台覆盖（槽位 link.straight）；未配置时就是上面的内置默认
   const linkArt = spireAssetUrl(LINK_SLOT, LINK_ART)
@@ -453,33 +453,6 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
           <SpireEmblem className="h-4 w-4" color={theme.accent} />
         </div>
 
-        {/* 行参考线：每行一条极淡横线，帮助眼睛对齐散列节点 */}
-        <div className="pointer-events-none absolute inset-0">
-          {rows.map((_, r) => (
-            <div
-              key={`g${r}`}
-              className="absolute"
-              style={{
-                left: compact ? 8 : 24,
-                right: compact ? 8 : 24,
-                top: rowTop(r) + ROW_H / 2,
-                height: 1,
-                background: "rgba(255,255,255,.05)",
-              }}
-            />
-          ))}
-        </div>
-
-        {/* BOSS 行下沿的分隔线 + 标注：把"塔顶"从普通层里拎出来（线在 BOSS 之下，标注挂在线下方） */}
-        <div className="pointer-events-none absolute" style={{ left: compact ? 8 : 24, right: compact ? 8 : 24, top: bossRowBottom }}>
-          <div style={{ height: 1, background: "rgba(255,255,255,.06)" }} />
-        </div>
-        <span
-          className="pointer-events-none absolute tracking-[.24em]"
-          style={{ right: compact ? 8 : 20, top: bossRowBottom + 4, fontSize: compact ? 9 : 10, color: "rgba(255,255,255,.34)" }}
-        >
-          TOP
-        </span>
 
         {/* 连线层：底层铺素材包的横向小径整图（沿弦拉伸 + 按弦角旋转），
             状态（未走/已走过/可选）只用透明度区分；可选再叠一条流动虚线做"下一步"提示 */}
@@ -529,22 +502,7 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
         {/* 主图面：绝对定位散列布局（左侧行号 + 节点区按行均摊加抖动）。
             行号跟着行一起翻：第 r 行的标号（I/II/…）始终与 rows[r] 同一条水平线上 */}
         <div style={boardStyle}>
-          {rows.map((row, r) => (
-            <div
-              key={`fl${r}`}
-              className="absolute flex items-center justify-end"
-              style={{ left: 0, width: LABEL_COL_W, top: rowTop(r), height: ROW_H, paddingRight: compact ? 4 : 12 }}
-            >
-              <span
-                className="whitespace-nowrap font-medium tabular-nums tracking-[.18em]"
-                style={{ color: "rgba(255,255,255,.18)", fontSize: compact ? 9 : 11 }}
-              >
-                {compact ? r + 1 : (ROMAN[r] ?? r + 1)}
-              </span>
-            </div>
-          ))}
-
-          <div className="absolute bottom-0 top-0 right-0" style={{ left: LABEL_COL_W }}>
+          <div className="absolute bottom-0 top-0" style={{ left: LABEL_COL_W, right: LABEL_COL_W }}>
           {allNodes.map((n) => {
             // 未揭示节点：揭示前按 random 渲染（封印石门），揭示后按真实类型渲染，
             // 图标 / 描边配色 / 悬浮名三者必须一起切，否则会出现"问号图标 + 商店配色"的错位
