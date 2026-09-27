@@ -44,8 +44,8 @@ export default function HomePage() {
           文字冒险、爬塔、幸存者与雷霆战机的世界。登录后即可开始游玩，进度自动保存，随时随地继续。
         </p>
         <div className="mt-2 flex items-center gap-3">
-          <Link href="/games/trpg" className="btn-primary">开始冒险 <ArrowRight size={15} /></Link>
-          {meChecked && !user && <Link href="/login" className="btn-ghost">登录</Link>}
+          <Link href="/games/trpg" className="btn-primary cursor-pointer">开始冒险 <ArrowRight size={15} /></Link>
+          {meChecked && !user && <Link href="/login" className="btn-ghost cursor-pointer">登录</Link>}
         </div>
       </section>
 
@@ -53,7 +53,7 @@ export default function HomePage() {
       <section className="grid grid-cols-1 gap-4 pb-14 md:grid-cols-2 lg:grid-cols-4 lg:gap-5">
         {GAMES.map((g) => (
           <Link key={g.href} href={g.href}
-            className="card card-hover group flex flex-col gap-3 border border-black/5 bg-white/70 p-6 shadow-sm backdrop-blur-md">
+            className="card card-hover group flex cursor-pointer select-none flex-col gap-3 border border-black/5 bg-white/70 p-6 shadow-sm backdrop-blur-md">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-100 text-3xl shadow-inner transition-transform duration-200 group-hover:scale-110">{g.emoji}</span>
             <div>
               <div className="flex items-center gap-2">
