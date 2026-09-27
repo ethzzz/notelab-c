@@ -66,14 +66,13 @@ const DISC_BG = "radial-gradient(circle at 50% 30%, #4a5262 0%, #3a4150 58%, #2f
 const SPINE_FADE = "linear-gradient(90deg, transparent 0%, rgba(0,0,0,.28) 26%, rgba(0,0,0,.78) 44%, #000 50%, rgba(0,0,0,.78) 56%, rgba(0,0,0,.28) 74%, transparent 100%)"
 
 // ---------------- 素材包整图（public/spire/art/） ----------------
-// **六张整图不能共用一个显示框**：它们的构图差得很远（雾区轮廓宽占画布 0.71~0.98，亮区宽 0.34~0.90），
-// 同一个框里画出来，icon-random 会比别的节点大一圈、icon-shop 又显得最小 —— 一眼就看出"尺寸没对齐"。
-// 下面的系数是「显示框 ÷ 目标视觉直径」，来路是 .sync/art-bbox.py 的两个度量
-// （① 雾区轮廓宽 ② 亮区宽，都按"和普通敌人等大"归一化）分别算一遍再取几何平均，
-// 最后用 .sync/rand-ab.png 上眼 A/B 校过一次 —— random 是唯一近乎满画布构图的一张，单独收到 0.91。
-// **换素材后要重新量、重新 A/B**，别照抄这张表。
+// **各整图不能共用一个显示框**：新素材（dungeon-element-pack）每张构图占比差很远
+// （boss 恶魔几乎满画布、random 空石环只占 0.49、rest/shop 摊位约 0.53）。
+// 系数 = 画布边长 ÷ 内容包围盒直径，原理是「显示框 ×(内容占比)= 目标视觉直径 VIS」，
+// 故令 K = 画布/内容直径即可让每种节点 motif 都渲染到各自 VIS（普通 64 / BOSS 96），盘面疏密节奏不变。
+// 数值来源：measure_art.py 逐像素算每个 PNG 的非透明包围盒（alpha>25）得到，换素材后重跑即可，别照抄。
 const ART_BOX_K: Record<NodeType, number> = {
-  enemy: 1.53, elite: 1.58, rest: 1.51, shop: 1.50, random: 0.91, boss: 1.33,
+  enemy: 1.4, elite: 1.37, rest: 1.74, shop: 1.9, random: 2.05, boss: 1.0,
   event: 1, // 没有整图：直接按目标视觉直径画圆盘
 }
 // 节点「看得见的圆」直径。口径与换素材前的圆盘对齐（普通 64 / BOSS 96，刚好是老设计的 1.5 倍），
