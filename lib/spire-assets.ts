@@ -54,9 +54,10 @@ const NODE_SLOT: Record<NodeType, string> = {
  * 内置常量是**唯一默认来源**，这里不再抄一份路径，避免两处漂移。
  */
 export function artForNodeType(t: NodeType): string | null {
-  const v = assets[NODE_SLOT[t]]
-  if (typeof v === "string" && v.trim()) return v.trim()
-  return NODE_META[t].art
+  // ⚠️ 必须走 spireAssetUrl 而不是直接取 assets[key]：后台下发的路径带历史 /games 前缀
+  // （B 端素材清单 urlPrefix 仍是 /games/spire），而 C 端当前**没有 basePath**（nginx / → 3010），
+  // 直接把 /games/... 塞进 <img src> 会 404 —— 表现为"后台配了节点图但游戏里空白"。
+  return spireAssetUrl(NODE_SLOT[t], NODE_META[t].art ?? "")
 }
 
 /** 连线槽位（fallback 由 SpireMap 传入，因为那里才有 LINK_ART 常量与尺寸约定） */
