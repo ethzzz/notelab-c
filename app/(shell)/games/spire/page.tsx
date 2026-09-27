@@ -486,7 +486,10 @@ export default function SpirePage() {
   // ---------------- 路线图：选择下一节点前进 ----------------
   if (s.phase === "map") {
     return (
-      <div className="relative flex h-[calc(100vh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none">
+      {/* 地图阶段：容器高度=视口减去 Shell 顶栏(56px)与内边距，使整页不出现滚动条；
+          地图区域用 flex-1 min-h-0 overflow-auto 独立滚动，顶栏/副标题/图例之外的其它元素不随之滑动。
+          ⚠️ calc() 减号两侧必须留空格（用下划线转义），否则整条 height 失效、容器塌成内容高度、整页滚动。 */}
+      <div className="relative flex h-[calc(100dvh_-_9rem)] flex-col overflow-hidden rounded-2xl border border-zinc-300/60 bg-gradient-to-b from-[#141021] to-[#0b0e1a] select-none md:h-[calc(100dvh_-_7rem)]">
         {/* 顶栏 */}
         <div className="flex items-center justify-between px-4 py-2 text-sm">
           <div className="flex items-center gap-3 text-zinc-200">
@@ -502,8 +505,9 @@ export default function SpirePage() {
           </div>
         </div>
         <div className="text-center text-xs text-zinc-400">{s.pos ? "沿亮起的路线前进，所有路径最终汇聚于 BOSS" : "从起点选择一条路线出发"}</div>
-        {/* 地图：网状连线图，每一节点连向上一/下一节点；block 流保证图例在地图下方，overflow-auto 兼顾小屏纵/横滚动 */}
-        <div className="flex-1 overflow-auto px-2 py-3">
+        {/* 地图：网状连线图，每一节点连向上一/下一节点；flex-1 min-h-0 让它独立纵向滚动，
+           顶栏与副标题是固定兄弟节点、不随之滑动 */}
+        <div className="flex-1 min-h-0 overflow-auto px-2 py-3">
           <SpireMap s={s} onEnter={(id) => { unlockSpireAudio(); sfx("select"); enterNode(sp.current!, id); bump() }} />
         </div>
         {/* 弹层：查看卡组 */}
