@@ -9,9 +9,9 @@ import { resolveBgStyle, themeById } from "@/lib/themes"
 import { fetchMe, type CUser } from "@/lib/auth"
 import Modal from "@/components/ui/modal"
 import HoverMenu, { type HoverMenuItem } from "@/components/hover-menu"
-import { LogOut, User as UserIcon, Gamepad2, Languages, Wrench, ExternalLink } from "lucide-react"
+import { LogOut, User as UserIcon, Gamepad2, Languages, ExternalLink } from "lucide-react"
 
-// 移动端底部 Tab（桌面导航为 游戏中心 / 工具 两个悬浮菜单 + 返回主页）
+// 移动端底部 Tab（桌面导航为 游戏中心 悬浮菜单 + 返回主页）
 const NAV = [
   { href: "/", name: "游戏中心", icon: Gamepad2 },
   { href: "/utils/translate", name: "每日翻译", icon: Languages },
@@ -24,12 +24,6 @@ const GAME_MENU: HoverMenuItem[] = [
   { href: "/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
   { href: "/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
   { href: "/thunder", name: "雷霆战机", desc: "纵版弹幕 · 闯关", emoji: "✈️" },
-]
-
-// 工具类子模块的子菜单（悬停展开）：目前仅每日翻译，后续可扩展
-const TOOLS_MENU: HoverMenuItem[] = [
-  { href: "/utils", name: "工具首页", desc: "全部工具一览", emoji: "🧰" },
-  { href: "/utils/translate", name: "每日英语翻译练习", desc: "每日更新 · AI 判分", emoji: "🌐" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -86,10 +80,9 @@ export default function Shell({ children }: { children: ReactNode }) {
           <span className={`hidden lg:inline text-[10px] rounded-full px-2.5 py-1 whitespace-nowrap border ${dark ? "text-zinc-300 bg-white/10 border-white/10" : "text-zinc-500 bg-black/[0.04] border-black/5"}`}>玩家中心</span>
         </Link>
 
-        {/* 桌面端导航：游戏中心 / 工具 两个悬浮菜单 + 返回主页（home 主模块） */}
+        {/* 桌面端导航：游戏中心 悬浮菜单 + 返回主页（home 主模块） */}
         <nav className="hidden md:flex items-center gap-1 ml-4">
           <HoverMenu label="游戏中心" icon={<Gamepad2 size={15} />} items={GAME_MENU} pathname={pathname} dark={dark} />
-          <HoverMenu label="工具" icon={<Wrench size={15} />} items={TOOLS_MENU} pathname={pathname} dark={dark} />
           {/* 返回主站：home 个人主页为上层主模块，普通 <a> 跳出 basePath */}
           <a href="/"
             className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>
