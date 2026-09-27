@@ -560,16 +560,16 @@ export default function SpireMap({ s, onEnter }: { s: RunState; onEnter: (id: st
             const vis = isBoss
               ? (compact ? VIS.bossCompact : VIS.boss)
               : (compact ? VIS.normalCompact : VIS.normal)
-            // 状态可读性：可达=正常亮度可点；已走过=略降透明+去饱和；未来不可达=更淡但仍须看得见。
-            // 原先 .4/.5 在近黑底上会把圆盘连同描边一起抹掉（即"关卡与背景重叠"）。
-            // 换整图后再提一档（.55/.60 → .66/.70）：整图本身比线描图标暗，压太狠在近黑底上就只剩一团影子
+            // 状态可读性（C 方案 2026-09-27）：把"暗"只作为状态提示，不再整片发灰。
+            // 可达=正常亮度可点；已走过=仅轻度降透明（去饱和已去掉，保留配色辨识）；未来不可达=更淡但仍须看得见。
+            // 可走节点始终是满亮度——其暗度来自源图美术，不在此处处理（见 NodeArt 的 <img> 零 filter）。
             const stateCls = isCur
               ? ""
               : can
               ? "cursor-pointer"
               : done
-              ? "opacity-[0.76] grayscale-[.4]"
-              : "opacity-[0.82]"
+              ? "opacity-[0.85]"
+              : "opacity-[0.9]"
             // 外层 span 只做两件事：给当前节点挂亮环 + 供连线测中心点（只看中心，与直径无关）。
             // 节点形象（整图 / 圆盘）全部由 NodeArt 画，故这里不再设底与描边
             const discShadow = isCur
