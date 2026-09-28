@@ -2,11 +2,9 @@
 // 数据驱动设计：卡牌由 CardEffect 效果列表组成（可自定义增改），角色带被动/主动技能，
 // 技能与被动通过触发时机钩子（全局生效 / 打出卡片 / 回合开始）作用于效果数值，方便后续拓展。
 
-// 地图生成规则（类型权重 / 最小层数 / 揭示池 / 最大列数 / 路径条数）全部来自素材包随附的
-// map-gen.config.json —— 调平衡改 JSON，不要在这里写魔数，避免两份真相各自漂移。
-// 路径之所以指向 public/：素材包要求「配置 + manifest + 样例 + 素材」同目录自包含，
-// 另存副本就会漂移，所以宁可让代码从 public 里取。
-import MAP_GEN from "@/public/spire/map-gen.config.json"
+// 地图生成规则（类型权重 / 最小层数 / 揭示池 / 最大列数 / 路径条数）现在统一来自后台 spire.mapRules 切片：
+// 引擎默认值 BASE_MAP_RULES 只在「后台未发布 mapRules」时回落使用，运营在 B 端「地图生成」页改规则后
+// 经 applyCustomContent(mapRules) 整体覆盖。原 public/spire/map-gen.config.json 已废弃（规则真相源改为后端）。
 
 // ---------------- 卡牌效果系统 ----------------
 export type CardCategory = "attack" | "defense" | "buff" | "special"
@@ -201,6 +199,56 @@ const clampInt = (v: any, lo: number, hi: number, dft: number) => {
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dft
 }
 
+// ---------------- 地图生成规则（可被后台 spire.mapRules 切片整体覆盖） ----------------
+/**
+ * 基础地图规则：当后台没有发布 mapRules 切片（或发布内容被净化丢弃）时，引擎回落到这组值。
+ * 与后端 SpireContentController.BASE_MAP_RULES / B 端 spire-mapgen.ts 的 DEFAULT_PARAMS 保持**同一组数字**，
+ * 否则懒 seed 下 B 端看到的内置值与 C 端落到的值会不一致。
+ * ⚠️ 早期本项目规则来自 public/spire/map-gen.config.json（已废弃，规则真相源改为后端 mapRules 切片）：
+ *    这里的值就是那份 JSON 的现值 + 项目扩展（event 权重/最早层、earlySafeLayers）。
+ */
+export type SpireMapRules = {
+  layers: number
+  acts: number
+  maxColumns: number
+  pathCount: [number, number]
+  weights: Record<RollType, number>
+  minLayer: Record<RollType, number>
+  revealPool: { normal: number; elite: number; shop: number; rest: number }
+  earlySafeLayers: number
+}
+export const BASE_MAP_RULES: SpireMapRules = {
+  layers: 16, acts: 3, maxColumns: 4, pathCount: [4, 6],
+  weights: { enemy: 45, elite: 15, shop: 12, rest: 10, random: 18, event: 12 },
+  minLayer: { enemy: 0, elite: 3, shop: 2, rest: 2, random: 0, event: 2 },
+  revealPool: { normal: 45, elite: 15, shop: 12, rest: 10 },
+  earlySafeLayers: 2,
+}
+/** 生效地图规则 = 基础规则 + 后台 mapRules 切片覆盖（live binding，generateMap/revealRandomNode 读最新值） */
+export let MAP_GEN_PARAMS: SpireMapRules = BASE_MAP_RULES
+/** 净化后台 mapRules：缺字段/越界一律夹到 BASE_MAP_RULES，保证引擎永远拿到合法对象（fail-open） */
+export function sanitizeMapRules(raw: any): SpireMapRules {
+  const d = BASE_MAP_RULES
+  const w = (k: RollType) => clampInt(raw?.weights?.[k], 0, 999, d.weights[k])
+  const m = (k: RollType) => clampInt(raw?.minLayer?.[k], 0, 40, d.minLayer[k])
+  const pc = Array.isArray(raw?.pathCount) ? raw.pathCount : d.pathCount
+  return {
+    layers: clampInt(raw?.layers, 4, 40, d.layers),
+    acts: clampInt(raw?.acts, 1, 8, d.acts),
+    maxColumns: clampInt(raw?.maxColumns, 2, 8, d.maxColumns),
+    pathCount: [clampInt(pc[0], 1, 8, d.pathCount[0]), clampInt(pc[1], 1, 8, d.pathCount[1])],
+    weights: { enemy: w("enemy"), elite: w("elite"), shop: w("shop"), rest: w("rest"), random: w("random"), event: w("event") },
+    minLayer: { enemy: m("enemy"), elite: m("elite"), shop: m("shop"), rest: m("rest"), random: m("random"), event: m("event") },
+    revealPool: {
+      normal: clampInt(raw?.revealPool?.normal, 0, 999, d.revealPool.normal),
+      elite: clampInt(raw?.revealPool?.elite, 0, 999, d.revealPool.elite),
+      shop: clampInt(raw?.revealPool?.shop, 0, 999, d.revealPool.shop),
+      rest: clampInt(raw?.revealPool?.rest, 0, 999, d.revealPool.rest),
+    },
+    earlySafeLayers: clampInt(raw?.earlySafeLayers, 0, 8, d.earlySafeLayers),
+  }
+}
+
 /** 净化单条效果：类型/数值非法则丢弃 */
 export function sanitizeEffect(raw: any): CardEffect | null {
   if (!raw || !EFFECT_TYPES.includes(raw.type)) return null
@@ -301,8 +349,8 @@ export function sanitizeEnemy(raw: any): EnemyDef | null {
   }
 }
 
-/** 注册自定义内容：重建生效卡池/角色池/敌人池/难度参数（游戏页与编辑器共用） */
-export function applyCustomContent(cards: any[], chars: any[], enemies?: any[], balance?: any) {
+/** 注册自定义内容：重建生效卡池/角色池/敌人池/难度参数/地图规则（游戏页与编辑器共用） */
+export function applyCustomContent(cards: any[], chars: any[], enemies?: any[], balance?: any, mapRules?: any) {
   const cc = (Array.isArray(cards) ? cards : []).map(sanitizeCard).filter(Boolean) as CardDef[]
   const customIds = new Set(cc.map((c) => c.id))
   CARDS = [...BASE_CARDS.filter((c) => !customIds.has(c.id)), ...cc]
@@ -325,6 +373,10 @@ export function applyCustomContent(cards: any[], chars: any[], enemies?: any[], 
     ACT_BOSS_IDS = [...b.actBossIds]
     ACT_SCALE_STEP = b.actScaleStep
     MAX_FLOOR = MAP_ROWS
+  }
+  // 地图生成规则：后台 mapRules 整体替换基础值（generateMap/revealRandomNode 读 MAP_GEN_PARAMS 最新值）
+  if (mapRules && typeof mapRules === "object") {
+    MAP_GEN_PARAMS = sanitizeMapRules(mapRules)
   }
 }
 
@@ -679,28 +731,11 @@ export function newRun(charId = "blade"): RunState {
 type RollType = Extract<NodeType, "enemy" | "elite" | "rest" | "shop" | "random" | "event">
 const ROLL_TYPES: RollType[] = ["enemy", "elite", "shop", "rest", "random", "event"]
 /**
- * 权重：前五项直接取配置（配置里「普通小怪」叫 normal，本引擎沿用历史命名 enemy）。
- * event 是**项目扩展** —— 配置原版没有它（只有 random），但本作已有 6 个事件与一整套结算界面，
- * 按「random 与 event 并存」的决定让它独立参与各层 roll，权重取与 shop 同档。
+ * 权重与最早层**全部来自 MAP_GEN_PARAMS**（可被后台 spire.mapRules 切片整体覆盖，见 applyCustomContent）。
+ * event 是**项目扩展** —— 原素材包配置没有它（只有 random），但本作已有 6 个事件与一整套结算界面，
+ * 按「random 与 event 并存」的决定让它独立参与各层 roll，权重取与 shop 同档（12）。
+ * 早期这些值硬编码在 BASE_MAP_RULES 里、且原取自 map-gen.config.json，现已统一入后台。
  */
-const EVENT_WEIGHT = 12
-const WEIGHT: Record<RollType, number> = {
-  enemy: MAP_GEN.nodeTypes.normal.weight,
-  elite: MAP_GEN.nodeTypes.elite.weight,
-  shop: MAP_GEN.nodeTypes.shop.weight,
-  rest: MAP_GEN.nodeTypes.rest.weight,
-  random: MAP_GEN.nodeTypes.random.weight,
-  event: EVENT_WEIGHT,
-}
-/** 最小层数（配置 constraints：elite ≥ 3，shop / rest ≥ 2） */
-const MIN_LAYER: Record<RollType, number> = {
-  enemy: MAP_GEN.nodeTypes.normal.minLayer,
-  elite: MAP_GEN.nodeTypes.elite.minLayer,
-  shop: MAP_GEN.nodeTypes.shop.minLayer,
-  rest: MAP_GEN.nodeTypes.rest.minLayer,
-  random: MAP_GEN.nodeTypes.random.minLayer,
-  event: 2, // 与 shop / rest 同档：事件同样给资源，不该出现在开局两层
-}
 const weightedPick = <T,>(list: T[], w: (t: T) => number): T => {
   let total = 0
   for (const t of list) total += w(t)
@@ -708,17 +743,18 @@ const weightedPick = <T,>(list: T[], w: (t: T) => number): T => {
   for (const t of list) { x -= w(t); if (x < 0) return t }
   return list[list.length - 1]
 }
-/** 按权重抽类型；ban 用于叠加「开局两层只允许普通 / 未揭示」这类按层的局部限制 */
-function rollType(layer: number, ban?: (t: RollType) => boolean): RollType {
-  const pool = ROLL_TYPES.filter((t) => layer >= MIN_LAYER[t] && !ban?.(t))
+/** 按权重抽类型；p 为当前生效的地图规则，ban 用于叠加「开局若干层只允许普通 / 未揭示」这类按层局部限制 */
+function rollType(p: SpireMapRules, layer: number, ban?: (t: RollType) => boolean): RollType {
+  const pool = ROLL_TYPES.filter((t) => layer >= p.minLayer[t] && !ban?.(t))
   // 兜底：约束叠加到没有候选时退化为普通敌人，绝不抛错
-  return weightedPick(pool.length > 0 ? pool : (["enemy"] as RollType[]), (t) => WEIGHT[t])
+  return weightedPick(pool.length > 0 ? pool : (["enemy"] as RollType[]), (t) => p.weights[t])
 }
 
 export function generateMap(layers: number = MAP_ROWS): SpireMap {
+  const p = MAP_GEN_PARAMS
   const L = Math.max(4, layers | 0)
-  const maxCol = Math.max(2, MAP_GEN.map.maxColumns)
-  const [pcLo, pcHi] = MAP_GEN.map.pathCount
+  const maxCol = Math.max(2, p.maxColumns)
+  const [pcLo, pcHi] = p.pathCount
   // pathCount（配置 4~6）= 并行主干条数，这里用于决定纺锤最宽处宽度，再被 maxColumns 夹住。
   // ⚠️ 当前 maxColumns=4 会把 4~6 全夹成 4，这个区间暂时看不出差别；
   // 想让 5~6 条主干真正生效，需要同时放开配置里的 maxColumns。
@@ -788,11 +824,11 @@ export function generateMap(layers: number = MAP_ROWS): SpireMap {
     if (n.row === 0) { n.type = "enemy"; continue }      // 入口固定普通（配置 entrance）
     if (n.row === L - 1) { n.type = "boss"; continue }   // 末层单 BOSS
     if (n.row === L - 2) { n.type = "rest"; continue }   // BOSS 前一层强制补给：最后的回复窗口
-    // 开局两层只允许普通 / 未揭示（配置 early-tiers-safe），避免一上来撞精英
-    const ban = n.row < 2 ? (t: RollType) => t !== "enemy" && t !== "random" : undefined
-    n.type = rollType(n.row, ban)
+    // 开局若干层只允许普通 / 未揭示（earlySafeLayers），避免一上来撞精英
+    const ban = n.row < p.earlySafeLayers ? (t: RollType) => t !== "enemy" && t !== "random" : undefined
+    n.type = rollType(p, n.row, ban)
   }
-  // 商店与营地不得被同一条边直连（配置 shop-rest-not-adjacent）：
+  // 商店与营地不得被同一条边直连（shop-rest-not-adjacent）：
   // 冲突时重 roll **可变的那一端**（上面三行是定死的），且排除 shop / rest 本身，兜底退化为普通敌人
   for (let pass = 0; pass < 12; pass++) {
     let changed = 0
@@ -803,8 +839,8 @@ export function generateMap(layers: number = MAP_ROWS): SpireMap {
         if (!bad) continue
         const target = !fixedRow(m.row) ? m : !fixedRow(n.row) ? n : null
         if (!target) continue
-        target.type = rollType(target.row, (t) =>
-          t === "shop" || t === "rest" || (target.row < 2 && t !== "enemy" && t !== "random"))
+        target.type = rollType(p, target.row, (t) =>
+          t === "shop" || t === "rest" || (target.row < p.earlySafeLayers && t !== "enemy" && t !== "random"))
         changed++
       }
     }
@@ -846,13 +882,14 @@ export function mapForAct(act: number, layers: number = MAP_ROWS): SpireMap {
  * 会被一个第 1 层的未揭示节点绕过去。结果写进 revealedType，之后渲染与结算都按它走。
  */
 export function revealRandomNode(n: MapNode): NodeType {
+  const rp = MAP_GEN_PARAMS.revealPool
   // 元组字面量必须显式断言，否则 TS 会放宽成 (string|number)[][] 而编译失败
   const pool: [NodeType, number][] = ([
-    ["enemy", MAP_GEN.randomNode.revealPool.normal],
-    ["elite", MAP_GEN.randomNode.revealPool.elite],
-    ["shop", MAP_GEN.randomNode.revealPool.shop],
-    ["rest", MAP_GEN.randomNode.revealPool.rest],
-  ] as [NodeType, number][]).filter(([t]) => n.row >= MIN_LAYER[t as RollType])
+    ["enemy", rp.normal],
+    ["elite", rp.elite],
+    ["shop", rp.shop],
+    ["rest", rp.rest],
+  ] as [NodeType, number][]).filter(([t]) => n.row >= MAP_GEN_PARAMS.minLayer[t as RollType])
   const picked = weightedPick(
     pool.length > 0 ? pool : ([["enemy", 1]] as [NodeType, number][]),
     ([, w]) => w,

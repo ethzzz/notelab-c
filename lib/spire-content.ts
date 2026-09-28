@@ -25,6 +25,12 @@ export interface SpireCustomContent {
    */
   balance?: any
   /**
+   * 地图生成规则（缺失 → 回落引擎内置 BASE_MAP_RULES）。
+   * 形态：{layers,acts,maxColumns,pathCount,weights,minLayer,revealPool,earlySafeLayers}；净化归引擎 sanitizeMapRules 负责。
+   * 当后台未发布地图方案、C 端回落本地生成时，用这里的规则代替硬编码默认。
+   */
+  mapRules?: any
+  /**
    * 角色授权：{C 端用户组码: [该组可选择的角色 id...]}。
    * 缺失、或玩家所属组没有对应键 → 不做筛选（fail-open，全部角色可选）。
    */
@@ -82,11 +88,12 @@ export async function loadSpireContent(): Promise<SpireCustomContent> {
       skills: Array.isArray(d.skills) ? d.skills : [],
       enemies: Array.isArray(d.enemies) ? d.enemies : [],
       balance: d.balance,
+      mapRules: d.mapRules,
       charAccess: cleanCharAccess(d.charAccess),
       assets: cleanAssets(d.assets),
       maps: cleanMaps(d.maps),
     }
   } catch {
-    return { cards: [], characters: [], skills: [], enemies: [], balance: undefined, charAccess: {}, assets: {}, maps: { packs: [] } }
+    return { cards: [], characters: [], skills: [], enemies: [], balance: undefined, mapRules: undefined, charAccess: {}, assets: {}, maps: { packs: [] } }
   }
 }
