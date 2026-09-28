@@ -17,6 +17,8 @@ export interface SpireCustomContent {
   cards: any[]
   characters: any[]
   skills: any[]
+  /** 敌人/Boss（缺失或空 → 回落内置 10） */
+  enemies?: any[]
   /**
    * 角色授权：{C 端用户组码: [该组可选择的角色 id...]}。
    * 缺失、或玩家所属组没有对应键 → 不做筛选（fail-open，全部角色可选）。
@@ -73,11 +75,12 @@ export async function loadSpireContent(): Promise<SpireCustomContent> {
       cards: Array.isArray(d.cards) ? d.cards : [],
       characters: Array.isArray(d.characters) ? d.characters : [],
       skills: Array.isArray(d.skills) ? d.skills : [],
+      enemies: Array.isArray(d.enemies) ? d.enemies : [],
       charAccess: cleanCharAccess(d.charAccess),
       assets: cleanAssets(d.assets),
       maps: cleanMaps(d.maps),
     }
   } catch {
-    return { cards: [], characters: [], skills: [], charAccess: {}, assets: {}, maps: { packs: [] } }
+    return { cards: [], characters: [], skills: [], enemies: [], charAccess: {}, assets: {}, maps: { packs: [] } }
   }
 }

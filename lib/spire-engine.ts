@@ -270,8 +270,39 @@ export function sanitizeCharacter(raw: any, pool: CardDef[]): CharacterDef | nul
   }
 }
 
-/** 注册自定义内容：重建生效卡池/角色池与卡 id 索引（游戏页与编辑器共用） */
-export function applyCustomContent(cards: any[], chars: any[]) {
+/** 净化自定义敌人：id/name 缺、无合法 move 直接丢弃；数值夹到安全范围（与后端 sanitizeEnemies 口径一致） */
+export function sanitizeEnemy(raw: any): EnemyDef | null {
+  if (!raw || typeof raw !== "object") return null
+  const id = typeof raw.id === "string" && raw.id.trim() ? raw.id.trim() : null
+  const name = typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : null
+  if (!id || !name) return null
+  const moves = (Array.isArray(raw.moves) ? raw.moves : [])
+    .map((m: any): Move | null => {
+      if (!m || !MOVE_KINDS.includes(m.kind)) return null
+      const dk = m.debuffKind === "weak" || m.debuffKind === "vuln" ? m.debuffKind : undefined
+      return {
+        name: typeof m.name === "string" ? m.name : "",
+        kind: m.kind,
+        amt: clampInt(m.amt, 0, 99, 1),
+        hits: clampInt(m.hits, 1, 9, 1),
+        icon: typeof m.icon === "string" && m.icon.trim() ? m.icon.trim() : "❓",
+        debuffKind: dk,
+      }
+    })
+    .filter(Boolean) as Move[]
+  if (moves.length === 0) return null
+  return {
+    id, name,
+    icon: typeof raw.icon === "string" && raw.icon.trim() ? raw.icon.trim() : "👾",
+    hp: clampInt(raw.hp, 1, 999, 30),
+    elite: !!raw.elite,
+    boss: !!raw.boss,
+    moves,
+  }
+}
+
+/** 注册自定义内容：重建生效卡池/角色池/敌人池与各类 id 索引（游戏页与编辑器共用） */
+export function applyCustomContent(cards: any[], chars: any[], enemies?: any[]) {
   const cc = (Array.isArray(cards) ? cards : []).map(sanitizeCard).filter(Boolean) as CardDef[]
   const customIds = new Set(cc.map((c) => c.id))
   CARDS = [...BASE_CARDS.filter((c) => !customIds.has(c.id)), ...cc]
@@ -279,9 +310,19 @@ export function applyCustomContent(cards: any[], chars: any[]) {
   const cch = (Array.isArray(chars) ? chars : []).map((r) => sanitizeCharacter(r, CARDS)).filter(Boolean) as CharacterDef[]
   const charIds = new Set(cch.map((c) => c.id))
   CHARACTERS = [...BASE_CHARACTERS.filter((c) => !charIds.has(c.id)), ...cch]
+  // 敌人：同 id 用自定义覆盖内置（已净化列表，合并后刷新查表索引）
+  if (Array.isArray(enemies) && enemies.length) {
+    const ce = (enemies as EnemyDef[]).map(sanitizeEnemy).filter(Boolean) as EnemyDef[]
+    const eids = new Set(ce.map((e) => e.id))
+    ENEMIES = [...BASE_ENEMIES.filter((e) => !eids.has(e.id)), ...ce]
+    refreshEnemyIndex()
+  }
 }
 
 // ---------------- 敌人 ----------------
+/** 意图类型白名单（与后端 MOVE_KINDS 对齐） */
+export const MOVE_KINDS = ["atk", "block", "buff", "debuff"] as const
+
 export interface Move {
   name: string
   kind: "atk" | "block" | "buff" | "debuff"
@@ -310,7 +351,7 @@ export interface EnemyState {
   atkScale: number
 }
 
-const ENEMIES: EnemyDef[] = [
+const BASE_ENEMIES: EnemyDef[] = [
   {
     id: "cultist", name: "邪教徒", icon: "👤", hp: 30, moves: [
       { name: "嚎叫", kind: "buff", amt: 2, hits: 1, icon: "📣" },
@@ -388,6 +429,12 @@ const ENEMIES: EnemyDef[] = [
     ],
   },
 ]
+
+/** 生效敌人池 = 基础敌人 + 工坊自定义敌人（同 id 时自定义覆盖基础）。可被 applyCustomContent 覆盖重赋值 */
+export let ENEMIES: EnemyDef[] = [...BASE_ENEMIES]
+/** 敌人 id 索引（随 ENEMIES 一起刷新，供 pickEnemyDef 快速查表） */
+let ENEMY_BY_ID: Record<string, EnemyDef> = Object.fromEntries(ENEMIES.map((e) => [e.id, e]))
+const refreshEnemyIndex = () => { ENEMY_BY_ID = Object.fromEntries(ENEMIES.map((e) => [e.id, e])) }
 
 // ---------------- 状态与特效事件 ----------------
 /** act-clear = 中途幕 BOSS 已击败、等待进入下一幕的幕间整备界面 */

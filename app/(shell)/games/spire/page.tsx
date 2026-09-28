@@ -316,7 +316,7 @@ export default function SpirePage() {
   // 三者都是**整体替换式**注入，且都 fail-open：接口挂了 / 后端没配 → 全部走内置默认与本地生成。
   useEffect(() => {
     loadSpireContent().then((c) => {
-      applyCustomContent(c.cards, c.characters)
+      applyCustomContent(c.cards, c.characters, c.enemies)
       setCharAccess(c.charAccess || {})
       setSpireAssets(c.assets)
       // 已发布地图的取用口：makePublishedMapProvider 在"一份可用配置都没有"时返回 null，
