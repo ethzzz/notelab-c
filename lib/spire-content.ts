@@ -20,6 +20,11 @@ export interface SpireCustomContent {
   /** 敌人/Boss（缺失或空 → 回落内置 10） */
   enemies?: any[]
   /**
+   * 平衡/难度参数（缺失 → 回落引擎内置 BASE_*）。
+   * 形态：{totalActs, mapRows, actBossIds[], actScaleStep}；净化归引擎 sanitizeBalance 负责。
+   */
+  balance?: any
+  /**
    * 角色授权：{C 端用户组码: [该组可选择的角色 id...]}。
    * 缺失、或玩家所属组没有对应键 → 不做筛选（fail-open，全部角色可选）。
    */
@@ -76,11 +81,12 @@ export async function loadSpireContent(): Promise<SpireCustomContent> {
       characters: Array.isArray(d.characters) ? d.characters : [],
       skills: Array.isArray(d.skills) ? d.skills : [],
       enemies: Array.isArray(d.enemies) ? d.enemies : [],
+      balance: d.balance,
       charAccess: cleanCharAccess(d.charAccess),
       assets: cleanAssets(d.assets),
       maps: cleanMaps(d.maps),
     }
   } catch {
-    return { cards: [], characters: [], skills: [], enemies: [], charAccess: {}, assets: {}, maps: { packs: [] } }
+    return { cards: [], characters: [], skills: [], enemies: [], balance: undefined, charAccess: {}, assets: {}, maps: { packs: [] } }
   }
 }

@@ -301,8 +301,8 @@ export function sanitizeEnemy(raw: any): EnemyDef | null {
   }
 }
 
-/** 注册自定义内容：重建生效卡池/角色池/敌人池与各类 id 索引（游戏页与编辑器共用） */
-export function applyCustomContent(cards: any[], chars: any[], enemies?: any[]) {
+/** 注册自定义内容：重建生效卡池/角色池/敌人池/难度参数（游戏页与编辑器共用） */
+export function applyCustomContent(cards: any[], chars: any[], enemies?: any[], balance?: any) {
   const cc = (Array.isArray(cards) ? cards : []).map(sanitizeCard).filter(Boolean) as CardDef[]
   const customIds = new Set(cc.map((c) => c.id))
   CARDS = [...BASE_CARDS.filter((c) => !customIds.has(c.id)), ...cc]
@@ -316,6 +316,15 @@ export function applyCustomContent(cards: any[], chars: any[], enemies?: any[]) 
     const eids = new Set(ce.map((e) => e.id))
     ENEMIES = [...BASE_ENEMIES.filter((e) => !eids.has(e.id)), ...ce]
     refreshEnemyIndex()
+  }
+  // 难度参数：后台 balance 整体替换基础值（与敌人"同 id 覆盖"不同，这里直接覆盖）
+  if (balance && typeof balance === "object") {
+    const b = sanitizeBalance(balance)
+    TOTAL_ACTS = b.totalActs
+    MAP_ROWS = b.mapRows
+    ACT_BOSS_IDS = [...b.actBossIds]
+    ACT_SCALE_STEP = b.actScaleStep
+    MAX_FLOOR = MAP_ROWS
   }
 }
 
@@ -453,21 +462,67 @@ export interface MapNode {
   revealedType?: NodeType
 }
 export interface SpireMap { nodes: MapNode[]; layers: number }
+// ---------------- 平衡/难度（可被后台 spire.balance 切片整体覆盖） ----------------
 /**
- * 每幕层数。**层数由前端写死在这里**，generateMap 只把它当参数消费——
+ * 基础常量：当后台没有发布 balance 切片（或发布内容被净化丢弃）时，引擎回落到这组值。
+ * 与后端 SpireContentController.BASE_* 保持**同一组数字**，
+ * 否则懒 seed 下 B 端看到的内置值与 C 端落到的值会不一致。
+ */
+export const BASE_MAP_ROWS = 16
+export const BASE_TOTAL_ACTS = 3
+export const BASE_ACT_BOSS_IDS = ["king", "jadeGolem", "spireLord"]
+export const BASE_ACT_SCALE_STEP = 0.3
+
+/**
+ * 每幕层数。**层数基础值写死在 BASE_MAP_ROWS**，generateMap 把它当参数消费。
  * 素材包 map-gen.config.json 里的 layers:16 是结构 demo，不是本项目的层数来源。
+ * 这两个是 `let`：applyCustomContent 注入后台 balance 后会整体覆盖（live binding，
+ * page.tsx / spire-maps.ts 等消费方会读到最新值）。
  */
-export const MAP_ROWS = 16
+export let MAP_ROWS = BASE_MAP_ROWS
 /** 幕数：每一幕一张独立地图、顶端一个专属 BOSS；只有打完最后一幕的 BOSS 才算通关 */
-export const TOTAL_ACTS = 3
+export let TOTAL_ACTS = BASE_TOTAL_ACTS
 /** 各幕 BOSS（下标 = 幕序 - 1）；取不到时回退到最后一幕的 BOSS */
-export const ACT_BOSS_IDS = ["king", "jadeGolem", "spireLord"]
+export let ACT_BOSS_IDS = [...BASE_ACT_BOSS_IDS]
 /**
- * 逐幕难度系数：第 1 幕 ×1.0、第 2 幕 ×1.3、第 3 幕 ×1.6。
+ * 逐幕难度步进：第 act 幕系数 = 1 + (act-1) * ACT_SCALE_STEP。
  * 同时作用于敌方**血量**与**攻击伤害**（意图预览与实际结算共用，保证头顶数字不撒谎）。
- * 数值取舍：让三幕 BOSS 的实际血量落在 ~180 / ~290 / ~435，终幕需要认真构筑才打得过。
+ * 数值取舍（step=0.3）：让三幕 BOSS 的实际血量落在 ~180 / ~290 / ~435，终幕需要认真构筑才打得过。
  */
-export const actScale = (act: number) => 1 + (Math.max(1, act) - 1) * 0.3
+export let ACT_SCALE_STEP = BASE_ACT_SCALE_STEP
+/** 难度系数函数：读 ACT_SCALE_STEP（可被后台覆盖），不要在此写死 0.3 */
+export const actScale = (act: number) => 1 + (Math.max(1, act) - 1) * ACT_SCALE_STEP
+
+/** 后台难度配置形态（与后端 baseBalance / B 端 SpireBalance 对齐） */
+export interface SpireBalance {
+  totalActs: number
+  mapRows: number
+  actBossIds: string[]
+  actScaleStep: number
+}
+
+/**
+ * 净化后台 balance：缺字段/越界一律夹到基础值，保证引擎永远拿到合法对象（fail-open）。
+ * 口径与后端 sanitizeBalance 一致：totalActs 1..8、mapRows 1..400、actScaleStep 0..5、
+ * actBossIds 循环补齐到 totalActs（不足复用末位、超出截断）。
+ */
+export function sanitizeBalance(raw: any): SpireBalance {
+  const clampInt = (v: any, lo: number, hi: number, dft: number) => {
+    const n = Math.round(Number(v))
+    return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dft
+  }
+  const totalActs = clampInt(raw?.totalActs, 1, 8, BASE_TOTAL_ACTS)
+  const mapRows = clampInt(raw?.mapRows, 1, 400, BASE_MAP_ROWS)
+  const step = Number(raw?.actScaleStep)
+  const actScaleStep = Number.isFinite(step) ? Math.max(0, Math.min(5, step)) : BASE_ACT_SCALE_STEP
+  let ids: string[] = Array.isArray(raw?.actBossIds)
+    ? raw.actBossIds.filter((x: any) => typeof x === "string" && !!x)
+    : []
+  if (ids.length === 0) ids = [...BASE_ACT_BOSS_IDS]
+  while (ids.length < totalActs) ids.push(ids[ids.length - 1])
+  ids = ids.slice(0, totalActs)
+  return { totalActs, mapRows, actBossIds: ids, actScaleStep }
+}
 /**
  * 综合进度（跨幕），用于最佳纪录 —— 避免多幕后只记层数导致语义错乱；兼容旧值（层数）。
  * ⚠️ 换算基数是 MAP_ROWS 常量，不是 `s.maxFloor`：已发布地图若换了层数，
@@ -566,7 +621,7 @@ export interface RunState {
   lastActKills: number    // 上一幕击杀数（进入新幕后保留，供幕间结算展示）
 }
 
-export const MAX_FLOOR = MAP_ROWS
+export let MAX_FLOOR = MAP_ROWS
 export const REMOVE_COST = 75
 export const REST_RATIO = 0.3
 
