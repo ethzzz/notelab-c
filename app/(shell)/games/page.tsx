@@ -22,6 +22,10 @@ const GAMES = [
     href: "/games/thunder", emoji: "✈️", name: "雷霆战机", tag: "纵版弹幕 · 闯关",
     desc: "驾驶战机突入敌阵，弹幕中穿梭躲闪，击败层层首领，守住最后的防线。",
   },
+  {
+    href: "/games/dungeon", emoji: "🏰", name: "地牢领主", tag: "经营养成 · 派遣放置",
+    desc: "建造地下城设施、招募英雄并派遣探索。离线也在产出，每天回来看一眼就够了。",
+  },
 ]
 
 export default function HomePage() {
@@ -49,8 +53,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 游戏卡片（四款：中屏 2 列、大屏 4 列） */}
-      <section className="grid grid-cols-1 gap-4 pb-14 md:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+      {/* 游戏卡片（五款：中屏 2 列、大屏 3 列） */}
+      <section className="grid grid-cols-1 gap-4 pb-14 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
         {GAMES.map((g) => (
           <Link key={g.href} href={g.href}
             className="card card-hover group flex cursor-pointer select-none flex-col gap-3 border border-black/5 bg-white/70 p-6 shadow-sm backdrop-blur-md">
