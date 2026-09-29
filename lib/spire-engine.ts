@@ -80,8 +80,11 @@ export function cardDesc(def: CardDef): string {
   return def.desc || def.effects.map((e) => EFFECT_TEXT[e.type](e)).join("，")
 }
 
-// ---------------- 卡牌表（自定义新卡：追加一条即可，效果/描述全数据驱动） ----------------
-const BASE_CARDS: CardDef[] = [
+// ---------------- 卡牌兜底快照（fail-open 安全网，非真相源） ----------------
+// 真相源是后台 ui_config.spire.cards（admin 全量拥有，含内置初始卡组；SpireContentController.spireOf 懒 seed）。
+// 引擎只在「后台未发布 / 接口异常 / 卡池被清空」导致拿不到任何卡时回落这里，保证游戏不白屏。
+// ⚠️ 改内置卡数值请改后台，不要改这里 —— 这里只在极端兜底时生效。
+const FALLBACK_CARDS: CardDef[] = [
   { id: "strike", name: "打击", icon: "⚔️", cost: 1, category: "attack", rarity: 0, effects: [dm(6)] },
   { id: "defend", name: "防御", icon: "🛡️", cost: 1, category: "defense", rarity: 0, effects: [bl(5)] },
   { id: "bash", name: "痛击", icon: "🔨", cost: 2, category: "attack", rarity: 0, effects: [dm(8), vu(2)] },
@@ -99,8 +102,8 @@ const BASE_CARDS: CardDef[] = [
   // 技能生成的专属卡（不进奖励/商店池）
   { id: "shadowstrike", name: "影袭", icon: "🌑", cost: 0, category: "attack", rarity: 1, spawnOnly: true, effects: [dm(10)] },
 ]
-/** 生效卡牌池 = 基础卡 + 工坊自定义卡（同 id 时自定义覆盖基础） */
-export let CARDS: CardDef[] = [...BASE_CARDS]
+/** 生效卡牌池 = 后台下发的 spire.cards（admin 全量拥有）；空时回落 FALLBACK_CARDS 兜底 */
+export let CARDS: CardDef[] = [...FALLBACK_CARDS]
 let CARD_BY_ID: Record<string, CardDef> = Object.fromEntries(CARDS.map((c) => [c.id, c]))
 
 // ---------------- 角色与技能 ----------------
@@ -352,8 +355,9 @@ export function sanitizeEnemy(raw: any): EnemyDef | null {
 /** 注册自定义内容：重建生效卡池/角色池/敌人池/难度参数/地图规则（游戏页与编辑器共用） */
 export function applyCustomContent(cards: any[], chars: any[], enemies?: any[], balance?: any, mapRules?: any) {
   const cc = (Array.isArray(cards) ? cards : []).map(sanitizeCard).filter(Boolean) as CardDef[]
-  const customIds = new Set(cc.map((c) => c.id))
-  CARDS = [...BASE_CARDS.filter((c) => !customIds.has(c.id)), ...cc]
+  // 卡片：后台 spire.cards 是**唯一真相源**（admin 全量拥有，含内置初始卡组）。
+  // 后台返回非空 → 直接采用；为空（未发布 / 接口异常 / 被清空）→ 回落 FALLBACK_CARDS 兜底，游戏不崩。
+  CARDS = cc.length > 0 ? cc : FALLBACK_CARDS
   CARD_BY_ID = Object.fromEntries(CARDS.map((c) => [c.id, c]))
   const cch = (Array.isArray(chars) ? chars : []).map((r) => sanitizeCharacter(r, CARDS)).filter(Boolean) as CharacterDef[]
   const charIds = new Set(cch.map((c) => c.id))
