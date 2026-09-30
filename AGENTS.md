@@ -11,7 +11,7 @@
 | pm2 进程 | `notelab-c` |
 | 端口 | **3010** |
 | nginx | `location ^~ /games`，保留前缀转发 |
-| 线上入口 | http://117.72.32.87/games/ |
+| 线上入口 | https://haolo.cloud/games/ |
 | GitHub | `git@github.com:ethzzz/notelab-c.git`（main） |
 
 **本仓没有自己的后端**：页面内 `/api/*` 全部由 nginx 直达 `notelab-java`（:8001），前端不做任何代理或 rewrites。
