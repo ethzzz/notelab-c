@@ -39,9 +39,9 @@ export const CONTACTS = [
   {
     kind: 'mail',
     label: '邮箱（点击填写）',
-    href: 'mailto:ethzzz@users.noreply.github.com',
+    href: 'mailto:ethz0607@gmail.com',
     external: false,
-    hint: '发送邮件到 ethzzz@users.noreply.github.com',
+    hint: '发送邮件到 ethz0607@gmail.com',
   },
 ] as const;
 
