@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { fetchMe, type CUser } from "@/lib/auth"
+import { rememberPath } from "@/lib/api"
 
 const GAMES = [
   {
@@ -47,10 +48,17 @@ export default function HomePage() {
         <p className="max-w-xl text-sm leading-relaxed text-zinc-500 md:text-base">
           卡牌构筑与 Roguelike、文字冒险、弹幕射击——登录即可开始游玩，进度自动保存，随时随地继续。
         </p>
-        {/* ⚠️ 2026-10-01 口径：Hero 不再直达某一款具体游戏（原先的「开始冒险」指向 /games/trpg），
-            统一只给「登录即玩」；已登录态改给回游戏中心的次级入口。 */}
-        <div className="mt-2 flex items-center gap-3">
-          <Link href="/login" className="btn-primary cursor-pointer">登录即玩 <ArrowRight size={15} /></Link>
+        {/* ⚠️ CTA 结构必须恒定（2026-10-01 修）：按钮行固定 min-w，登录态只换「第一颗」的文案与目标、
+            不增删按钮。此前已登录时多渲染一颗「回到游戏中心」，整行居中会把「登录即玩」从 x=662 挤到 x=597，
+            下方卡片区还跟着下移 2px。
+            未登录 → 登录即玩（额外记 rememberPath，登录成功后回跳 /games，不再落到个人主页）；
+            已登录 → 开始冒险（直达 TRPG），避免点「登录即玩」后被 /login 的已登录回跳送回主页。 */}
+        <div className="mt-2 flex min-w-[15.5rem] items-center justify-center gap-3">
+          {meChecked && user ? (
+            <Link href="/games/trpg" className="btn-primary cursor-pointer">开始冒险 <ArrowRight size={15} /></Link>
+          ) : (
+            <Link href="/login" onClick={() => rememberPath("/games")} className="btn-primary cursor-pointer">登录即玩 <ArrowRight size={15} /></Link>
+          )}
           {meChecked && user && <Link href="/games" className="btn-ghost cursor-pointer">回到游戏中心</Link>}
         </div>
       </section>
