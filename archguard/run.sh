@@ -8,7 +8,7 @@
 #
 # ⚠️ 2026-10-01 从 notelab-java/ops/archguard 迁入本仓（notelab-c）——ArchGuard 扫的是
 #    三个仓，本就不是 notelab-java 的内部工具；M2 的查询端（/api/arch/*）仍留在后端，
-#    写入端（本脚本的 persist.js）迁过来后，服务器上跑扫描的地方也跟着换到 /root/notelab-c。
+#    写入端（本脚本的 persist.js）迁过来后，服务器上跑扫描的地方也跟着换到 /root/Notelab/notelab-c。
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
