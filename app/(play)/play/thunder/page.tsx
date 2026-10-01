@@ -3,21 +3,15 @@
 // iframe 内嵌 nginx 静态站 /thunder/（alias /var/www/thunder，尾斜杠与 Next 路由 /thunder 天然分流）；
 // 游戏本体 480×800 竖版 letterbox 自适应，直接撑满容器即可。
 export default function ThunderPage() {
+  // ⚠️ 2026-10-01：全屏游戏台下不再留页内标题行（原来 h1 + 副标题要吃掉约 60px，
+  //    iframe 只吃到 93% 高度）。「新窗口打开」改挂到 iframe 右下角浮标，不占文档流高度。
   return (
-    <div className="flex h-full w-full flex-col gap-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-800 md:text-2xl">雷霆战机</h1>
-          <p className="mt-0.5 text-xs text-zinc-400">纵版弹幕 · 三机体 · 三关六首领</p>
-        </div>
-        <a href="/thunder/" target="_blank" rel="noreferrer"
-          className="shrink-0 rounded-xl border border-black/5 bg-white/70 px-3 py-1.5 text-xs font-medium text-indigo-500 shadow-sm backdrop-blur transition hover:bg-white">
-          新窗口打开 ↗
-        </a>
-      </div>
-      <div className="flex-1 overflow-hidden rounded-2xl border border-black/10 bg-black shadow-xl">
-        <iframe src="/thunder/" title="雷霆战机" className="h-full w-full border-0" allow="fullscreen" />
-      </div>
+    <div className="relative h-full w-full overflow-hidden rounded-2xl border border-black/10 bg-black shadow-xl">
+      <iframe src="/thunder/" title="雷霆战机" className="h-full w-full border-0" allow="fullscreen" />
+      <a href="/thunder/" target="_blank" rel="noreferrer"
+        className="absolute bottom-3 right-3 z-10 rounded-xl border border-black/5 bg-white/70 px-3 py-1.5 text-xs font-medium text-indigo-500 shadow-sm backdrop-blur transition hover:bg-white">
+        新窗口打开 ↗
+      </a>
     </div>
   )
 }
