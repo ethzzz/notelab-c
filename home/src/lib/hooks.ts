@@ -1,7 +1,93 @@
 /** 自定义 hooks：RSS 加载、当前激活 tab 的 URL 路径同步。 */
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { CATEGORIES, type ToolCategoryId } from '../data/tools';
 import { fetchLatestPosts, type RssState } from './rss';
+
+/** 个人主页顶层 tab id（与 URL 末段一致：/projects 未单独建路由，故只有这三个） */
+export type HomeTab = 'projects' | 'posts' | 'tools';
+
+/** URL 解析结果：顶层 tab + 工具 tab 的二级分类 */
+export interface HomeRoute {
+  tab: HomeTab;
+  /** 工具分类；非 tools tab 时为 'all' */
+  cat: ToolCategoryId;
+}
+
+const HOME_TABS: readonly HomeTab[] = ['projects', 'posts', 'tools'];
+
+/**
+ * 由 pathname 解析主页路由（唯一真源，SSR 与客户端共用）。
+ * - `/` → 项目；`/posts` → 文章；
+ * - `/tools`、`/tools/ai` → 工具 tab，分类分别落在 all / ai（非法分类退回 all，不 404）；
+ * - 末段不是合法 tab 时（如 /games、/login）退回 projects，
+ *   并再给一次旧 hash 外链的机会（`/#posts`），SSR 无 window 直接回退。
+ */
+export function parseHomeRoute(pathname: string): HomeRoute {
+  const segs = pathname.split('/').filter(Boolean);
+
+  if (segs[0] === 'tools') {
+    const c = (segs[1] ?? 'all') as ToolCategoryId;
+    return { tab: 'tools', cat: CATEGORIES.some((x) => x.id === c) ? c : 'all' };
+  }
+
+  const last = segs[segs.length - 1] ?? '';
+  const fromPath = HOME_TABS.find((t) => t === last);
+  if (fromPath) return { tab: fromPath, cat: 'all' };
+
+  const fromHash =
+    typeof window === 'undefined'
+      ? undefined
+      : HOME_TABS.find((t) => t === window.location.hash.replace(/^#/, ''));
+  return { tab: fromHash ?? 'projects', cat: 'all' };
+}
+
+/**
+ * 主页路由状态（tab + 工具分类）与 URL 双向同步。
+ *
+ * 2026-10-01 工具页 /tools 合并进主页面后，主页与工具页共用一套外壳（TabLayout），
+ * 顶层 tab 由 pathname 末段驱动、工具分类由 `/tools/<cat>` 驱动，
+ * 两者都用 `router.replace` 软导航：不堆历史、不触发整页刷新、URL 可直接分享。
+ */
+export function useHomeRoute(): [
+  HomeRoute,
+  (tab: HomeTab) => void,
+  (cat: ToolCategoryId) => void,
+] {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [route, setRoute] = useState<HomeRoute>(() => parseHomeRoute(pathname));
+
+  useEffect(() => {
+    setRoute(parseHomeRoute(pathname));
+  }, [pathname]);
+
+  /** 切换顶层 tab：projects → `/`，其余 → `/<id>` */
+  const goTab = useCallback(
+    (tab: HomeTab) => {
+      setRoute({ tab, cat: 'all' });
+      const target = tab === 'projects' ? '/' : `/${tab}`;
+      if (typeof window !== 'undefined' && window.location.pathname !== target) {
+        router.replace(target, { scroll: false });
+      }
+    },
+    [router],
+  );
+
+  /** 切换工具分类：只在 tools tab 内生效，落到 `/tools/<cat>` */
+  const goCat = useCallback(
+    (cat: ToolCategoryId) => {
+      setRoute({ tab: 'tools', cat });
+      const target = `/tools/${cat}`;
+      if (typeof window !== 'undefined' && window.location.pathname !== target) {
+        router.replace(target, { scroll: false });
+      }
+    },
+    [router],
+  );
+
+  return [route, goTab, goCat];
+}
 
 /**
  * 拉取博客最新文章。
@@ -30,69 +116,4 @@ export function useLatestPosts(reloadKey: number = 0): RssState {
   }, [reloadKey]);
 
   return state;
-}
-
-/**
- * 激活 tab 与 **URL 路径末段** 双向同步（如 `/blog`、`/tools/ai`）。
- *
- * 前序实现 `useHashTab` 用的是 `location.hash + replaceState` —— 那套来自旧 home 仓
- * （Vite 纯静态 MPA，双入口 index.html / tools.html，当时没有路由系统可用）。
- * 2026-09-27 主页移植进 notelab-c 的 Next App Router 后，`/` 与 `/tools` 已是真实路由，
- * tab 继续用 hash 会留下 `/#blog` 这样的脏 URL，也无法单独分享 / 索引某个 tab。
- * 故改为路径驱动，并与 App Router 的软导航对齐：
- * - 读取：取 pathname 最后一段（`/` 段为空时用 fallback）；
- * - 兼容旧 hash 链接：pathname 末段非法时再试一次 location.hash，
- *   让 `/#blog`、`/tools#ai` 这类历史收藏 / 外链仍能落到正确 tab（SSR 无 window 跳过）；
- * - 切换：`router.replace('/<id>')` 做软导航，不堆历史记录、不触发整页刷新；
- * - 本地 state 先立即反馈（pathname 变更有异步延迟），再由 pathname 变化校正一次。
- */
-export function useRouteTab<T extends string>(
-  valid: readonly T[],
-  fallback: T,
-  /** tab 所在的父路径：主页为 ''（`/blog`），工具页为 'tools'（`/tools/ai`） */
-  base = '',
-): [T, (id: T) => void] {
-  const pathname = usePathname();
-  const router = useRouter();
-  const key = valid.join('|');
-  const ids = key.split('|');
-
-  const read = useCallback((): T => {
-    const seg = pathname.split('/').filter(Boolean).pop() ?? '';
-    if (ids.includes(seg)) return seg as T;
-    // 末段不是 tab（如 /tools 的 'tools'、根路径的空串）时退看 hash：
-    // 让 /#blog、/tools#ai 这类历史收藏 / 外链仍能落到正确 tab。SSR 无 window 直接回 fallback。
-    if (typeof window === 'undefined') return fallback;
-    return ids.includes(window.location.hash.replace(/^#/, ''))
-      ? (window.location.hash.replace(/^#/, '') as T)
-      : fallback;
-  }, [pathname, key, fallback]);
-
-  const [tab, setTab] = useState<T>(read);
-
-  useEffect(() => {
-    setTab(read());
-  }, [read]);
-
-  const change = useCallback(
-    (id: T) => {
-      setTab(id);
-      // 选中默认 tab 时回到父路径本身（/tools → /tools，/ → /），
-      // 这样外部引来的 /tools 链接不会被用户一按 tab 就永久改写成 /tools/all
-      const target =
-        id === fallback
-          ? base
-            ? `/${base}`
-            : '/'
-          : base
-            ? `/${base}/${id}`
-            : `/${id}`;
-      if (window.location.pathname !== target) {
-        router.replace(target, { scroll: false });
-      }
-    },
-    [base, fallback, router],
-  );
-
-  return [tab, change];
 }

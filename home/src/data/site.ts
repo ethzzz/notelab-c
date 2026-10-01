@@ -47,7 +47,11 @@ export const CONTACTS = [
 
 export type Contact = (typeof CONTACTS)[number];
 
-/** 页面间跳转（MPA，均为真实静态文件） */
+/**
+ * 站点入口路径。
+ * 2026-10-01 工具页并入主页后两套外壳合为一处，导航全在 TabLayout 内部；
+ * PAGES 保留为对外/对外链的真实路由常量（tools 即主页里的「工具」tab 落地路径）。
+ */
 export const PAGES = {
   home: '/',
   tools: '/tools',

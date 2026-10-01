@@ -204,8 +204,88 @@ a.card:focus-visible .cardGo {
   opacity: 0.8;
 }
 
+/* ==========================================================================
+   二级分类条（工具 tab 内容区顶部，2026-10-01 工具页并入主页后的分类筛选）
+   ========================================================================== */
+
+.catBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: var(--content-max);
+  margin-bottom: clamp(0.9rem, 1.6vw, 1.3rem);
+}
+
+.catChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.catChip:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+/* 选中态：与「项目 / 文章 / 工具」顶层 tab 的激活手法保持一致 */
+.catChipOn,
+.catChipOn:hover {
+  color: var(--accent-ink);
+  background: var(--accent-veil);
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.catEmoji {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.catCount {
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.catChipOn .catCount {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent-ink);
+}
+
 @media (max-width: 480px) {
   .grid {
     grid-template-columns: 1fr;
+  }
+
+  .catBar {
+    /* 窄屏两行平铺，避免 chips 被裁成单行滚动 */
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .catChip {
+    justify-content: center;
   }
 }

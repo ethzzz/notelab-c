@@ -194,39 +194,6 @@
   border-top: 1px solid var(--border);
 }
 
-.sideLink {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--r-md);
-  border: 1px dashed var(--border-strong);
-  background: var(--surface);
-  color: var(--text-soft);
-  font-size: 0.85rem;
-  font-weight: 550;
-  transition:
-    color var(--dur) var(--ease),
-    border-color var(--dur) var(--ease),
-    background-color var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
-}
-
-.sideLink:hover {
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  background: var(--accent-veil);
-  transform: translateX(2px);
-}
-
-.sideLinkHint {
-  margin-left: auto;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--text-faint);
-  letter-spacing: 0.02em;
-}
-
 .contacts {
   display: flex;
   flex-direction: column;

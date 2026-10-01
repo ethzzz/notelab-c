@@ -1,6 +1,8 @@
-// 工具导航页（/tools）：按分类浏览全部工具，迁移自 home 的 tools.html。
+// 工具 tab 的落地页（/tools）：与主页面共用一套外壳，只是 URL 末段落在 tools 上。
+// 2026-10-01 起工具页不再是独立外壳（独立页 /tools 已合并进主页面），
+// 这里渲染同一个 HomeApp，由 useHomeRoute 把 /tools → 「工具」tab、/tools/<cat> → 对应分类。
 import type { Metadata } from "next"
-import ToolsPage from "@/home/src/ToolsPage"
+import HomeApp from "@/home/src/App"
 
 export const metadata: Metadata = {
   title: "工具 / 功能",
@@ -8,5 +10,5 @@ export const metadata: Metadata = {
 }
 
 export default function ToolsPageRoute() {
-  return <ToolsPage />
+  return <HomeApp />
 }

@@ -5,10 +5,8 @@ import { CONTACTS, SITE } from '../data/site';
 import {
   CloseIcon,
   GitHubIcon,
-  HomeIcon,
   MailIcon,
   MenuIcon,
-  WrenchIcon,
 } from './Icons';
 import styles from './TabLayout.module.css';
 
@@ -33,10 +31,6 @@ interface TabLayoutProps<T extends string> {
   tabs: readonly TabItem<T>[];
   active: T;
   onChange: (id: T) => void;
-  /** 侧栏底部「工具」入口：指向另一个 MPA 页面 */
-  toolPageHref?: string;
-  /** 侧栏底部「返回主页」入口（工具页用） */
-  homeHref?: string;
   /** 侧栏页脚补充说明 */
   footerNote?: string;
 }
@@ -50,14 +44,13 @@ function contactIcon(kind: (typeof CONTACTS)[number]['kind']): ReactNode {
  * 全屏「左竖直 tab / 右内容」布局外壳。
  * - 根容器 100dvh 且 overflow hidden，滚动只发生在内容区；
  * - 窄屏时侧栏降级为抽屉，由顶栏汉堡按钮唤出；
- * - index.html 与 tools.html 共用，保证两页视觉与交互一致。
+ * - 2026-10-01 工具独立页并入本页后，全站只此一套外壳（`/` 的 tab：项目 / 文章 / 工具），
+ *   工具分类降级为内容区内的二级 chips，不再需要第二条导航链。
  */
 export function TabLayout<T extends string>({
   tabs,
   active,
   onChange,
-  toolPageHref,
-  homeHref,
   footerNote,
 }: TabLayoutProps<T>): ReactNode {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -87,7 +80,7 @@ export function TabLayout<T extends string>({
         </span>
         <span className={styles.brandText}>
           <strong>{SITE.name}</strong>
-          <small>个人主页 · 工具索引</small>
+          <small>个人主页 · 项目 / 文章 / 工具</small>
         </span>
         <button
           type="button"
@@ -129,21 +122,6 @@ export function TabLayout<T extends string>({
       </nav>
 
       <div className={styles.sideFooter}>
-        {toolPageHref && (
-          <a className={styles.sideLink} href={toolPageHref} title="打开工具页（独立页面）">
-            <WrenchIcon width={18} height={18} />
-            <span>工具 / 功能</span>
-            <span className={styles.sideLinkHint}>独立页 ↗</span>
-          </a>
-        )}
-        {homeHref && (
-          <a className={styles.sideLink} href={homeHref} title="返回个人主页">
-            <HomeIcon width={18} height={18} />
-            <span>返回主页</span>
-            <span className={styles.sideLinkHint}>index ↗</span>
-          </a>
-        )}
-
         <div className={styles.contacts}>
           {CONTACTS.map((c) => (
             <a
