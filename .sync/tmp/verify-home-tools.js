@@ -224,6 +224,29 @@ function clickChip(text) {
   s = JSON.parse(await evalJs(NAV_STATE));
   check("回到主页默认「项目」", s.url === "/" && s.active.indexOf("项目") === 0, s.url + " / " + String(s.active));
 
+  // ---- 6.5 文章 tab 回归（App 结构改成三 tab 后侧栏逻辑重写，必须确认没带坏 /posts） ----
+  await goto("/posts");
+  s = JSON.parse(await evalJs(NAV_STATE));
+  // RSS 约 1.8MB + DOMParser，慢机器上要给它时间；轮询到出条目或明确非 loading 为止
+  let ps = null;
+  for (let i = 0; i < 24; i++) {
+    ps = JSON.parse(
+      await evalJs(
+        [
+          "JSON.stringify((() => {",
+          "  var main = document.querySelector('main');",
+          "  var items = main.querySelectorAll('a[class*=post]');",
+          "  return { items: items.length, loading: main.textContent.indexOf('加载中') >= 0, error: main.textContent.indexOf('加载失败') >= 0, first: items[0] ? items[0].getAttribute('href') : '' };",
+          "})())",
+        ].join("\n"),
+      ),
+    );
+    if (ps.items > 0 || ps.error || !ps.loading) break;
+    await sleep(700);
+  }
+  check("直开 /posts 落在文章 tab", s.url === "/posts" && s.active.indexOf("文章") === 0, s.url + " / " + String(s.active));
+  check("/posts 渲染出 RSS 文章条目", ps.items > 0 && !ps.loading, JSON.stringify(ps));
+
   // ---- 7. 窄屏（移动端）classification chips 两行不溢出 ----
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await goto("/tools");
@@ -242,7 +265,8 @@ function clickChip(text) {
   );
   const ov = JSON.parse(overflow);
   check("窄屏 chips 不横向溢出", ov.overflowX === false, JSON.stringify(ov));
-  check("窄屏 chips 两行排布", ov.rows === 2, JSON.stringify(ov));
+  // 5 个 chip 在两列网格里 = 3 行（2+2+1）
+  check("窄屏 chips 两列三行排布", ov.rows === 3 && ov.chips === 5, JSON.stringify(ov));
   await send("Page.captureScreenshot", { format: "png" }).then(async (r) => {
     fs.writeFileSync(path.join(OUT, "home-tools-mobile.png"), Buffer.from(r.data, "base64"));
   });
