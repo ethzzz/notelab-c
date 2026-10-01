@@ -7,7 +7,7 @@
 
 | 项 | 值 |
 |---|---|
-| 服务器目录 | `/root/notelab-c` |
+| 服务器目录 | `/root/Notelab/notelab-c` |
 | pm2 进程 | `notelab-c` |
 | 端口 | **3010** |
 | nginx | `location ^~ /games`，保留前缀转发 |
@@ -34,9 +34,9 @@
 # 本地：改完提交推送
 git push origin main
 # 服务器：同步 + 构建 + 重启一条命令搞定
-ssh myapp "/root/notelab-java/ops/sync-deploy.sh notelab-c"
+ssh myapp "/root/Notelab/notelab-java/ops/sync-deploy.sh notelab-c"
 ```
-- **不要在 `/root/notelab-c` 里手改代码**——服务器是只读部署目标；脚本发现工作区脏会直接拒绝执行。完整行为与参数见根 `AGENTS.md`「开发流程」。
+- **不要在 `/root/Notelab/notelab-c` 里手改代码**——服务器是只读部署目标；脚本发现工作区脏会直接拒绝执行。完整行为与参数见根 `AGENTS.md`「开发流程」。
 - 脚本只在**有变更**时构建；仅文档变更自动跳过（强制构建加 `--build`）；**构建失败不会重启服务**，老进程继续服务。
 - **只用 npm，不要用 pnpm**：`preinstall` 脚本会拦截（已移除，别再加回）。
 - 清理构建产物用 `rm -rf`：本机 npm 相关删除会被 safe-delete 策略拦 trash 操作。
@@ -135,7 +135,7 @@ node .sync/verify-maps-e2e.js     # 不需要服务器：用 notelab-b/node_modu
 
 ```bash
 # 服务器首次 / 依赖变更后（子包不在 sync-deploy.sh 的自动 install 范围内）
-ssh myapp "cd /root/notelab-c/archguard && npm install --no-audit --no-fund && node src/index.js"
+ssh myapp "cd /root/Notelab/notelab-c/archguard && npm install --no-audit --no-fund && node src/index.js"
 # 本地
 cd archguard && node src/index.js
 ```
@@ -153,7 +153,7 @@ cd archguard && node src/index.js
 
 仓库与服务器上**没有** `tests/` 目录，`package.json` 只有 `dev` / `build` / `start` 三个脚本。
 
-若在**本地镜像**（`E:\code\NoteLab\notelab-c`）看到 `tests/`、`lib/vs-render.ts`，或 `test:vs` / `test:spire` / `test:games` 脚本——那是**从未入库、服务器上也不存在的过期遗留**（该镜像的 `app/vs/page.tsx` 等文件同样比仓库版本旧）。**不要把它们当成本仓结构，更不要据此改动**。需要准确版本时以服务器 `/root/notelab-c` 为准。
+若在**本地镜像**（`E:\code\NoteLab\notelab-c`）看到 `tests/`、`lib/vs-render.ts`，或 `test:vs` / `test:spire` / `test:games` 脚本——那是**从未入库、服务器上也不存在的过期遗留**（该镜像的 `app/vs/page.tsx` 等文件同样比仓库版本旧）。**不要把它们当成本仓结构，更不要据此改动**。需要准确版本时以服务器 `/root/Notelab/notelab-c` 为准。
 
 ### 唯一的验证脚本：地图生成约束断言（在 `.sync/`，不入库）
 
@@ -172,7 +172,7 @@ ssh myapp "node /tmp/verify/verify-mapgen.js /tmp/verify/spire-engine.ts /tmp/ve
 ### ⚠️ 本仓的 `tsc` 是可信的（与 notelab-b 相反）
 
 `npx tsc --noEmit` 在本仓输出干净、没有 notelab-b 那种「引用已删页面的陈旧 `.next/types`」噪音，
-所以**可以把服务器上的 `npx tsc --noEmit` 当部署前预检**：scp 改动文件进 `/root/notelab-c` → tsc → `git checkout -- <file>` 还原 → 再 push。
+所以**可以把服务器上的 `npx tsc --noEmit` 当部署前预检**：scp 改动文件进 `/root/Notelab/notelab-c` → tsc → `git checkout -- <file>` 还原 → 再 push。
 两个仓的这条结论**不能混用**。
 
 ⚠️ 但它**只能在服务器上跑**：本仓本地 `node_modules` 是空的（不做本地安装），
@@ -183,4 +183,4 @@ ssh myapp "node /tmp/verify/verify-mapgen.js /tmp/verify/spire-engine.ts /tmp/ve
 ## 纪律与禁区
 - **测试账号凭据在 `account.json`**（字段 `account` / `password`），已入 `.gitignore`。需要登录态做验收时读该文件登录；**严禁**把明文写进代码、文档或提交进仓库。
 - 不动 `myapp`（旧前端）、`notelab`（旧 Python 版）、`notelab-b`（后端管理台）。本仓只消费 B 端**已发布**的剧本 / 尖塔内容（`trpg_scenarios.published`）。
-- 本目录是本地工作副本，**改这里**；服务器 `/root/notelab-c` 是只读部署目标（由 `ops/sync-deploy.sh notelab-c` 从 git 拉取）。别去服务器上改。
+- 本目录是本地工作副本，**改这里**；服务器 `/root/Notelab/notelab-c` 是只读部署目标（由 `ops/sync-deploy.sh notelab-c` 从 git 拉取）。别去服务器上改。
