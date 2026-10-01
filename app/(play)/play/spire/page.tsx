@@ -196,7 +196,7 @@ function Stage({ children }: { children: React.ReactNode }) {
   }, [])
   return (
     <div ref={wrapRef}
-      className="spire-stage-wrap relative flex w-full items-start justify-center overflow-hidden rounded-2xl h-[calc(100dvh_-_9rem)] md:h-[calc(100dvh_-_7rem)]">
+      className="spire-stage-wrap relative flex h-full min-h-0 w-full items-start justify-center overflow-hidden rounded-2xl">
       <div className="spire-stage"
         style={{ width: st.w, height: st.h, transform: `scale(${st.scale})`, transformOrigin: "top center" }}>
         {children}

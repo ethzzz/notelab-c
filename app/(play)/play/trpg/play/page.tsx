@@ -97,7 +97,7 @@ export default function TrpgPlayPage() {
     const sid = new URLSearchParams(window.location.search).get("sid")
     if (sid) {
       start(Number(sid))
-      window.history.replaceState(null, "", "/games/trpg/play")
+      window.history.replaceState(null, "", "/play/trpg/play")
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -115,7 +115,7 @@ export default function TrpgPlayPage() {
   const iconBtn = "grid h-8 w-8 place-items-center rounded-full text-zinc-300 transition-colors hover:bg-white/10 disabled:opacity-25 disabled:hover:bg-transparent"
 
   return (
-    <div className="relative w-full h-[calc(100dvh-140px)] min-h-[560px] rounded-3xl overflow-hidden flex items-center justify-center"
+    <div className="relative w-full h-full min-h-[560px] rounded-3xl overflow-hidden flex items-center justify-center"
       style={{ background: "radial-gradient(120% 90% at 50% 0%, #2c2352 0%, #191430 48%, #0b0916 100%)" }}>
       <style>{`
         @keyframes trpg-fog { 0%,100% { transform: translate(0,0) scale(1); opacity:.45 } 50% { transform: translate(26px,-18px) scale(1.15); opacity:.7 } }

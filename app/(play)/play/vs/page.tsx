@@ -355,7 +355,7 @@ export default function VsPage() {
   }, [])
 
   return (
-    <div ref={wrapRef} className="relative h-[calc(100vh-6.5rem)] overflow-hidden rounded-2xl border border-zinc-300/60 bg-[#0b0e1a] select-none">
+    <div ref={wrapRef} className="relative h-full min-h-[420px] overflow-hidden rounded-2xl border border-zinc-300/60 bg-[#0b0e1a] select-none">
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
 
       {/* HUD */}

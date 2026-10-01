@@ -8,23 +8,23 @@ import { rememberPath } from "@/lib/api"
 
 const GAMES = [
   {
-    href: "/games/trpg", emoji: "🎲", name: "TRPG 文字冒险", tag: "互动剧情 · 多结局",
+    href: "/play/trpg", emoji: "🎲", name: "TRPG 文字冒险", tag: "互动剧情 · 多结局",
     desc: "挑一个剧本，开始你的冒险。每一次选择，都将左右命运的走向，还有掷骰检定等你挑战。",
   },
   {
-    href: "/games/spire", emoji: "🗼", name: "爬塔", tag: "卡牌构筑 · Roguelike",
+    href: "/play/spire", emoji: "🗼", name: "爬塔", tag: "卡牌构筑 · Roguelike",
     desc: "选择角色，构筑卡组，一层一层向上挑战。击败敌人、收集卡牌与药水，看看你能爬多高。",
   },
   {
-    href: "/games/vs", emoji: "🧛", name: "吸血鬼幸存者", tag: "自动战斗 · 生存",
+    href: "/play/vs", emoji: "🧛", name: "吸血鬼幸存者", tag: "自动战斗 · 生存",
     desc: "吸血鬼潮水般涌来，走位、升级、挑选武器强化，在包围中坚持到最后一刻。",
   },
   {
-    href: "/games/thunder", emoji: "✈️", name: "雷霆战机", tag: "纵版弹幕 · 闯关",
+    href: "/play/thunder", emoji: "✈️", name: "雷霆战机", tag: "纵版弹幕 · 闯关",
     desc: "驾驶战机突入敌阵，弹幕中穿梭躲闪，击败层层首领，守住最后的防线。",
   },
   {
-    href: "/games/dungeon", emoji: "🏰", name: "地牢领主", tag: "经营养成 · 派遣放置",
+    href: "/play/dungeon", emoji: "🏰", name: "地牢领主", tag: "经营养成 · 派遣放置",
     desc: "建造地下城设施、招募英雄并派遣探索。离线也在产出，每天回来看一眼就够了。",
   },
 ]
@@ -55,7 +55,7 @@ export default function HomePage() {
             已登录 → 开始冒险（直达 TRPG），避免点「登录即玩」后被 /login 的已登录回跳送回主页。 */}
         <div className="mt-2 flex min-h-[2.375rem] min-w-[15.5rem] items-center justify-center gap-3">
           {meChecked && user ? (
-            <Link href="/games/trpg" className="btn-primary cursor-pointer">开始冒险 <ArrowRight size={15} /></Link>
+            <Link href="/play/trpg" className="btn-primary cursor-pointer">开始冒险 <ArrowRight size={15} /></Link>
           ) : (
             <Link href="/login" onClick={() => rememberPath("/games")} className="btn-primary cursor-pointer">登录即玩 <ArrowRight size={15} /></Link>
           )}

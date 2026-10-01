@@ -4,7 +4,7 @@
 // 游戏本体 480×800 竖版 letterbox 自适应，直接撑满容器即可。
 export default function ThunderPage() {
   return (
-    <div className="mx-auto flex h-[calc(100dvh-10rem)] max-w-5xl flex-col gap-3 md:h-[calc(100dvh-7.5rem)]">
+    <div className="flex h-full w-full flex-col gap-3">
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-zinc-800 md:text-2xl">雷霆战机</h1>

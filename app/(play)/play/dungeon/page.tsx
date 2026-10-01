@@ -130,7 +130,7 @@ export default function DungeonPage() {
   const plan = planDispatch(save, picked, floor)
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-16">
+    <div className="mx-auto max-w-5xl px-4 pb-16 pt-16">
       {/* 标题栏 */}
       <div className="flex flex-wrap items-center gap-3 pt-8 pb-5">
         <Link href="/games" className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700">
