@@ -17,13 +17,11 @@ const NAV = [
   { href: "/games/utils/translate", name: "每日翻译", icon: Languages },
 ]
 
-// 游戏中心子模块的子菜单（悬停展开）：概览 + 四款游戏
+// 游戏中心子模块的子菜单（悬停展开）。
+// ⚠️ 2026-10-01 口径：不在导航层直接陈列各游戏入口，游戏一律从「游戏中心」(/games) 进，
+// 因此这里只保留游戏中心首页一项（原先的 trpg/spire/vs/thunder 四个直接入口已移除）。
 const GAME_MENU: HoverMenuItem[] = [
   { href: "/games", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮", exact: true },
-  { href: "/games/trpg", name: "TRPG 文字冒险", desc: "互动剧情 · 多结局", emoji: "🎲" },
-  { href: "/games/spire", name: "爬塔", desc: "卡牌构筑 · Roguelike", emoji: "🗼" },
-  { href: "/games/vs", name: "吸血鬼幸存者", desc: "自动战斗 · 生存", emoji: "🧛" },
-  { href: "/games/thunder", name: "雷霆战机", desc: "纵版弹幕 · 闯关", emoji: "✈️" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {

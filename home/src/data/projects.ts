@@ -1,8 +1,10 @@
 /**
  * 项目导航卡数据。
- * 迁移自旧 index.html 的 .cards 区块（游戏中心 / 博客 / AI 试验场 / 管理后台），
- * 并补上原先仅通过「工具」区可达的两个独立游戏仓（雷霆战机 /thunder/、幸存者割草 /vs），
- * 确保工具拆到独立页后主页仍无损保留全部项目链接。
+ * 迁移自旧 index.html 的 .cards 区块（游戏中心 / 博客 / AI 试验场 / 管理后台）。
+ *
+ * ⚠️ 2026-10-01 口径调整：本项目（notelab-c）不再在主页「项目」tab 里直接陈列游戏入口。
+ * 游戏一律只从「游戏中心」(/games) 进，所以原先补进来的两个独立游戏仓卡片
+ * （雷霆战机 /thunder/、幸存者割草 /vs）已移除——它们不是本仓实现，也不该在主页被直接露出。
  */
 
 export interface Project {
@@ -29,7 +31,7 @@ export const PROJECTS: readonly Project[] = [
     id: 'games',
     emoji: '🎮',
     name: '游戏中心',
-    desc: 'TRPG 跑团、尖塔爬塔、幸存者割草、雷霆战机弹幕——登录即玩。',
+    desc: '卡牌爬塔、弹幕射击、文字冒险、割草生存——登录即玩，进度自动保存。',
     href: '/games',
     cta: '进入 →',
     repo: 'notelab-c',
@@ -64,25 +66,5 @@ export const PROJECTS: readonly Project[] = [
     cta: '登录 →',
     repo: 'notelab-b',
     tone: '#f59e0b',
-  },
-  {
-    id: 'thunder',
-    emoji: '✈️',
-    name: '雷霆战机',
-    desc: '本地 H5 弹幕射击，轨道碰撞与波次挑战。',
-    href: '/thunder/',
-    cta: '开玩 →',
-    repo: 'thunder-h5',
-    tone: '#38bdf8',
-  },
-  {
-    id: 'vs',
-    emoji: '🧟',
-    name: '幸存者割草',
-    desc: '波次生存，范围武器追身清场。',
-    href: '/vs',
-    cta: '开玩 →',
-    repo: 'vs-h5',
-    tone: '#34d399',
   },
 ] as const;

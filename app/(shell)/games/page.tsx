@@ -45,11 +45,13 @@ export default function HomePage() {
         <span className="text-[11px] font-medium tracking-widest text-indigo-500">玩家中心 · 游戏</span>
         <h1 className="text-3xl font-black tracking-wide text-zinc-800 md:text-5xl">游戏中心</h1>
         <p className="max-w-xl text-sm leading-relaxed text-zinc-500 md:text-base">
-          文字冒险、爬塔、幸存者与雷霆战机的世界。登录后即可开始游玩，进度自动保存，随时随地继续。
+          卡牌构筑与 Roguelike、文字冒险、弹幕射击——登录即可开始游玩，进度自动保存，随时随地继续。
         </p>
+        {/* ⚠️ 2026-10-01 口径：Hero 不再直达某一款具体游戏（原先的「开始冒险」指向 /games/trpg），
+            统一只给「登录即玩」；已登录态改给回游戏中心的次级入口。 */}
         <div className="mt-2 flex items-center gap-3">
-          <Link href="/games/trpg" className="btn-primary cursor-pointer">开始冒险 <ArrowRight size={15} /></Link>
-          {meChecked && !user && <Link href="/login" className="btn-ghost cursor-pointer">登录</Link>}
+          <Link href="/login" className="btn-primary cursor-pointer">登录即玩 <ArrowRight size={15} /></Link>
+          {meChecked && user && <Link href="/games" className="btn-ghost cursor-pointer">回到游戏中心</Link>}
         </div>
       </section>
 
