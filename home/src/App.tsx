@@ -21,7 +21,7 @@ const VALID_TABS: readonly HomeTab[] = ['projects', 'blog'];
  * tab 由 URL 末段驱动：/ → 项目，/blog → 文章。
  */
 export default function App(): ReactNode {
-  const [tab, setTab] = useRouteTab<HomeTab>(VALID_TABS, 'projects');
+  const [tab, setTab] = useRouteTab<HomeTab>(VALID_TABS, 'projects'); // base 为空 → /blog
 
   const tabs = useMemo<readonly TabItem<HomeTab>[]>(
     () => [

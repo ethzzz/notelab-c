@@ -41,12 +41,16 @@ export function useLatestPosts(reloadKey: number = 0): RssState {
  * tab 继续用 hash 会留下 `/#blog` 这样的脏 URL，也无法单独分享 / 索引某个 tab。
  * 故改为路径驱动，并与 App Router 的软导航对齐：
  * - 读取：取 pathname 最后一段（`/` 段为空时用 fallback）；
+ * - 兼容旧 hash 链接：pathname 末段非法时再试一次 location.hash，
+ *   让 `/#blog`、`/tools#ai` 这类历史收藏 / 外链仍能落到正确 tab（SSR 无 window 跳过）；
  * - 切换：`router.replace('/<id>')` 做软导航，不堆历史记录、不触发整页刷新；
  * - 本地 state 先立即反馈（pathname 变更有异步延迟），再由 pathname 变化校正一次。
  */
 export function useRouteTab<T extends string>(
   valid: readonly T[],
   fallback: T,
+  /** tab 所在的父路径：主页为 ''（`/blog`），工具页为 'tools'（`/tools/ai`） */
+  base = '',
 ): [T, (id: T) => void] {
   const pathname = usePathname();
   const router = useRouter();
@@ -55,7 +59,13 @@ export function useRouteTab<T extends string>(
 
   const read = useCallback((): T => {
     const seg = pathname.split('/').filter(Boolean).pop() ?? '';
-    return (ids.includes(seg) ? (seg as T) : fallback) as T;
+    if (ids.includes(seg)) return seg as T;
+    // 末段不是 tab（如 /tools 的 'tools'、根路径的空串）时退看 hash：
+    // 让 /#blog、/tools#ai 这类历史收藏 / 外链仍能落到正确 tab。SSR 无 window 直接回 fallback。
+    if (typeof window === 'undefined') return fallback;
+    return ids.includes(window.location.hash.replace(/^#/, ''))
+      ? (window.location.hash.replace(/^#/, '') as T)
+      : fallback;
   }, [pathname, key, fallback]);
 
   const [tab, setTab] = useState<T>(read);
@@ -67,12 +77,21 @@ export function useRouteTab<T extends string>(
   const change = useCallback(
     (id: T) => {
       setTab(id);
-      // 已经是目标路径就别再导航一次（避免点击当前 tab 时 push 无意义的历史）
-      if (window.location.pathname !== `/${id}`) {
-        router.replace(`/${id}`, { scroll: false });
+      // 选中默认 tab 时回到父路径本身（/tools → /tools，/ → /），
+      // 这样外部引来的 /tools 链接不会被用户一按 tab 就永久改写成 /tools/all
+      const target =
+        id === fallback
+          ? base
+            ? `/${base}`
+            : '/'
+          : base
+            ? `/${base}/${id}`
+            : `/${id}`;
+      if (window.location.pathname !== target) {
+        router.replace(target, { scroll: false });
       }
     },
-    [router],
+    [base, fallback, router],
   );
 
   return [tab, change];

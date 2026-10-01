@@ -16,7 +16,7 @@ const VALID_TABS: readonly ToolCategoryId[] = CATEGORIES.map((c) => c.id);
  * 分类由 URL 末段驱动：/tools → all，/tools/ai → ai。
  */
 export default function ToolsPage(): ReactNode {
-  const [cat, setCat] = useRouteTab<ToolCategoryId>(VALID_TABS, 'all');
+  const [cat, setCat] = useRouteTab<ToolCategoryId>(VALID_TABS, 'all', 'tools'); // → /tools/ai
 
   const tabs = useMemo<readonly TabItem<ToolCategoryId>[]>(
     () =>
