@@ -5,3 +5,6 @@ out/
 next-env.d.ts
 .DS_Store
 account.json
+
+# ArchGuard 扫描产物（每次扫描覆盖，不入库）
+archguard/arch-report.json

@@ -126,6 +126,29 @@ node .sync/verify-maps-e2e.js     # 不需要服务器：用 notelab-b/node_modu
 ⚠️ 别用「节点数 + 首节点的 next」这类**弱指纹**判断两张图是否相同：层数少时（如 5 层、每幕 12 个节点）
 弱指纹会误报"两幕一样"，实测三幕其实全不同。要指纹就用全量 `id:type>next`。
 
+## 跨仓架构守护 ArchGuard（本仓 `archguard/`，独立子包）
+
+本目录是 notelab-c 仓内的**独立 Node 子包**（自带 `package.json` + `node_modules`，**不参与 `next build`**），
+扫描 notelab-java / notelab-b / notelab-c **三仓源码**建依赖图，用 Tarjan 找循环依赖 + 规则集判分层违规，
+**退出码当门禁**（`error>0` → exit 1）。纯 AST 静态分析，**不依赖任何大模型**，结果确定可复现。
+详细用法与规则表见 `archguard/README.md`。
+
+```bash
+# 服务器首次 / 依赖变更后（子包不在 sync-deploy.sh 的自动 install 范围内）
+ssh myapp "cd /root/notelab-c/archguard && npm install --no-audit --no-fund && node src/index.js"
+# 本地
+cd archguard && node src/index.js
+```
+
+- **放在 `archguard/` 而不是 `app/`**：Next.js 会编译 `app/` 下的所有源码，扫描器不能进；
+  且它的依赖（java-parser / ts-morph）必须隔离，否则污染根依赖、拖慢 `next build`。
+- **选 notelab-c 落地是因为三仓在 `E:\code\NoteLab\` 与 `/root/` 下都是同级兄弟目录**，
+  扫描器从 `archguard/src` 向上三级即定位另两仓；这个前提在服务器上同样成立。
+- ⚠️ `sync-deploy.sh` 的 `npm_install_if_needed` 是**全行精确匹配**根目录 `package.json`，
+  已单独为 `archguard/package(-lock).json` 加了子包 install 分支（在 notelab-java 仓的 `ops/sync-deploy.sh`）。
+- ⚠️ 当前基线有 1 个 **error**：`controller → dao` 跳层，它正是 7 个 Java 包循环依赖的引线；另 1 条 warn
+  指向已废弃却仍在仓里的 `home/`（见下条禁区）。**warn 不拦门禁，只有 error 会让 exit 1。**
+
 ## ⚠️ 本仓没有测试脚本
 
 仓库与服务器上**没有** `tests/` 目录，`package.json` 只有 `dev` / `build` / `start` 三个脚本。
