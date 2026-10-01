@@ -53,7 +53,7 @@ export default function HomePage() {
             下方卡片区还跟着下移 2px。
             未登录 → 登录即玩（额外记 rememberPath，登录成功后回跳 /games，不再落到个人主页）；
             已登录 → 开始冒险（直达 TRPG），避免点「登录即玩」后被 /login 的已登录回跳送回主页。 */}
-        <div className="mt-2 flex min-w-[15.5rem] items-center justify-center gap-3">
+        <div className="mt-2 flex min-h-[2.375rem] min-w-[15.5rem] items-center justify-center gap-3">
           {meChecked && user ? (
             <Link href="/games/trpg" className="btn-primary cursor-pointer">开始冒险 <ArrowRight size={15} /></Link>
           ) : (
