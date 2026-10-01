@@ -65,7 +65,8 @@ export default function PlayShell({ children }: { children: ReactNode }) {
         <div className="flex shrink-0 items-center gap-2">
           {/* C 端登录用户名常驻文本（未登录时留空，游戏页本身已被 RequireAuth 挡住） */}
           {user && (
-            <span className="hidden max-w-[8rem] truncate rounded-full border border-black/5 bg-white/70 px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm backdrop-blur sm:inline-block">
+            {/* 用户名常驻（移动端不隐藏，只收窄截断——HUD 三个元素都是常驻的） */}
+            <span className="max-w-[3.25rem] truncate rounded-full border border-black/5 bg-white/70 px-2.5 py-1.5 text-xs font-medium text-zinc-600 shadow-sm backdrop-blur sm:max-w-[8rem] sm:px-3">
               {user.nickname || user.username}
             </span>
           )}
