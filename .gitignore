@@ -15,3 +15,21 @@ archguard/arch-report.json
 
 # 本地视觉验收产物（CDP 截图），工具脚本本身入库、截图不入库
 .sync/tmp/shots/
+
+# ===== Agent 产物落点（详见 E:/code/NoteLab/.agent/README.md）=====
+# 唯一可弃产物落点在**工作区根 .agent/**（不属于本仓，天然不入库）。
+# 以下是防「产物落点漂移进仓」的兜底：任何 agent 产物都不该出现在仓库里。
+.agent/
+*.tmp
+tmp-*
+tmp/
+*.bak-*
+*.orig
+*.rej
+*.local.*
+shots/
+screenshots/
+.chrome-cdp*
+cdp-profile/
+coverage/
+logs/
