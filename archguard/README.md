@@ -31,12 +31,15 @@ bash run.sh --dry               # 只打印将要执行的 SQL，不连库
 npm run scan
 ```
 
-扫描三仓实测（`~2.5s`）：
+扫描三仓实测（`~2s`）：
 
 ```
-节点 55 · 依赖边 76 · 循环依赖环 1 · 规则违规 2（error 1）
-  notelab-java: 节点10 边21 文件128 | notelab-b: 节点32 边39 文件69 | notelab-c: 节点13 边16 文件63
+节点 55 · 依赖边 77 · 循环依赖环 1 · 规则违规 1（error 0）
+  notelab-java: 节点10 边22 文件128 | notelab-b: 节点32 边39 文件69 | notelab-c: 节点13 边16 文件63
 ```
+
+⚠️ `exit 1` 是**门禁的正常结果**（`error > 0`）—— 有违规时故意返回 1 就是门禁语义，
+不是扫描失败。真正失败要看**报告有没有生成**（`run.sh` 里判的是这个）。
 
 ## 流水线
 
@@ -63,9 +66,15 @@ npm run scan
 
 | 规则 | 级别 | 判据 |
 |---|---|---|
-| `no-controller-to-dao` | error | controller 不得直接依赖 mapper / dao / entity（应经 service） |
+| `no-controller-to-dao` | error | controller 不得直接依赖 **mapper / entity**（真持久层） |
 | `no-service-to-controller` | error | service 不得反向依赖 controller（分层倒灌） |
 | `no-controller-to-entity` | warn | controller 直接引用 entity 持久化模型 |
+
+**文件规则**（判据在**单个文件内部**）：
+
+| 规则 | 级别 | 判据 |
+|---|---|---|
+| `no-bypass-existing-service` | error | 同一文件 import 的 service 已封装某个 dao，却绕过它直调该 dao |
 
 **节点规则**（判据落在模块自身，不依赖边）：
 
@@ -73,8 +82,19 @@ npm run scan
 |---|---|---|
 | `no-deprecated-home` | warn | 扫到已废弃的 `home/` 目录（已并入 `app/(home)/`，却还留在仓里） |
 
-⚠️ 当前基线并非干净——`no-controller-to-dao` 那条正是把 7 个 Java 包串成环的引线。
-门禁对 **warn** 不返回非零，只有 **error** 会让 `exit 1`，所以先清 error 再谈 warn。
+### 架构口径（2026-10-01 校准，别改回去）
+
+`no-controller-to-dao` **不**禁 controller→dao：notelab-java 的 dao 是**无状态静态门面**
+（`FooDao.xxx()` 就是函数调用，全仓 0 处 `@Autowired Dao`），而 `service/` 只有 7 个类、
+覆盖不了 19 个 controller，`service` 自己也 import dao。**要求「一律经 service」物理上做不到**，
+硬判会让 error 永不归零、门禁永远接不进部署——那是规则在制造噪音，不是架构问题。
+真持久层（mapper / entity）才禁；「有 service 却绕过它」交给 `no-bypass-existing-service`。
+
+`Db` / `DbSchema` / `DaoSupport` 虽在 `dao` 包下，但它们是连接池 / DDL / 基类，
+在 `build-graph.js` 里归到 **infra 层**，不算业务持久层（否则 `MenuController` 之类的启动依赖会被误报）。
+
+当前基线：**error 0**，只剩 1 条 `no-deprecated-home` warn（真实已知项，不在门禁拦截范围）。
+2026-10-01 已据此把 7 个 controller 的绕过调用收敛到对应 service（60 个转发方法），编译与接口均验证通过。
 
 ## 已知坑（都在这上面踩过，改代码前先看）
 
@@ -88,11 +108,22 @@ npm run scan
 4. **Windows 下 Git Bash 的 `/e/code/...` 会被 node 理解成 `E:\e\code\`**，所有路径一律用 `path.join(__dirname, ...)`。
 5. 报告产物 `arch-report.json` 已在 `.gitignore` 里，别 `git add -f`。
 
+## M3：接进部署门禁（已上线）
+
+`notelab-java/ops/sync-deploy.sh` 的 **notelab-c 分支**在 `npm run build` 之前跑 `archguard_gate`：
+
+- 只有变更碰了 `src/` 或 `archguard/src/` 才扫（archguard 自带 node_modules，约 2s）
+- `index.js` 退出码 `1` == 有 error 违规 → 判为「架构退步」并 `die` 中止部署
+- 退出码其它非零 → 判为扫描器本身坏了（不是架构问题），同样中止
+- 报告落 `arch-report.json`，直接看是哪条边
+- 紧急绕过：`SKIP_ARCH=1`
+
+⚠️ 此前刻意**不接**：基线有 1 个 error，一接会让所有 notelab-c 部署失败。清完 error 才接。
+
 ## 路线图
 
 - [x] M1 扫描引擎 + 规则 + 门禁
 - [x] M2 快照入库（MySQL）+ 趋势查询 API（查询端仍在 notelab-java 后端）
       —— 2026-10-01 从 `notelab-java/ops/archguard` 迁入本仓，本体只有一个，别去找第二份
-- [ ] M3 依赖图谱可视化（力导向图）
-- [ ] M4 接进部署门禁 ⚠️ **现在不能接**：基线还有 1 个 `error`（`controller → dao`），
-      一接就会让所有部署直接失败。先清 error 再谈门禁自动化。
+- [x] M3 接进 `notelab-c` 部署门禁（error 基线归零后才敢接）
+- [ ] M4 依赖图谱可视化（力导向图）+ 把 warn（如 `no-deprecated-home`）也接进门禁 Observe 看板
