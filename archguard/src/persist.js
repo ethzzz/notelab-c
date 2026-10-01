@@ -57,9 +57,14 @@ const sql = [
   (report.cycles || []).map((cy) => (cy.members || [])
     .map((m, seq) => 'INSERT INTO arch_scan_cycles (run_id,member_seq,member) VALUES (@run_id,' + seq + ",'" + esc(m) + "');")
     .join('\n')),
-  (report.violations || []).map((v) =>
-    'INSERT INTO arch_scan_violations (run_id,rule_id,level,from_module,to_module) VALUES (@run_id,'
-    + [v.rule, v.level, v.from, v.to].map(lit).join(',') + ');')
+  (report.violations || []).map((v) => {
+    // 节点级违规（如 no-deprecated-home）只有 node、没有 from/to，
+    // 不回填的话库里会落成两个空串，趋势查询就查不出是**哪个模块**违规。
+    const from = v.from || '';
+    const to = v.to || v.node || '';
+    return 'INSERT INTO arch_scan_violations (run_id,rule_id,level,from_module,to_module) VALUES (@run_id,'
+      + [v.rule, v.level, from, to].map(lit).join(',') + ');';
+  })
 ).join('\n');
 
 console.log('[archguard] 待入库：run 1 条 · cycles ' + (report.cycles || []).length

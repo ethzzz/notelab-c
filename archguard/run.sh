@@ -27,10 +27,18 @@ done
 
 node src/index.js "$@"
 rc=$?
-[ "$rc" -ne 0 ] && exit "$rc"
+# ⚠️ 不能因为 rc 非零就退出：index.js 有 error 级违规时**故意**返回 1（门禁语义），
+# 这是扫描的正常结果而不是扫描失败。早期版本写成 `[ "$rc" -ne 0 ] && exit "$rc"`，
+# 结果只要基线存在 error（现在就有 controller→dao 那一处），落库就永远跑不到。
+# 只有报告压根没生成才算真失败。
+if [ ! -f "$DIR/arch-report.json" ]; then
+  echo "[archguard] 扫描未产出报告（index.js 退出码 $rc），终止" >&2
+  exit 3
+fi
 
 if [ "$WANT_PERSIST" -eq 0 ]; then
-  echo "[archguard] --no-persist：未入库"
+  echo "[archguard] --no-persist：未入库（扫描退出码 $rc）"
+  exit "$rc"
 elif [ "$WANT_DRY" -eq 1 ]; then
   node src/persist.js --report "$DIR/arch-report.json" --dry
 else
