@@ -43,8 +43,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "git 拉齐服务器代码（防御性）",
     body: "cd {{repo}}\ngit fetch --prune\ngit reset --hard origin/main\ngit clean -fd",
     tags: ["Git", "部署"],
-    extra: SNIPPET_DEFAULTS["sn-001"],
-    extra: { note: "分支不是 main 时把 origin/main 换掉" },
+    extra: { ...SNIPPET_DEFAULTS["sn-001"], note: "分支不是 main 时把 origin/main 换掉" },
   },
   {
     id: "sn-002",
