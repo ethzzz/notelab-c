@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import MemoryShell, { loadKind } from "@/components/MemoryShell";
 import { upsert, remove, search, newId, type MemoryItem } from "@/lib/memory";
-import { extractVars, interpolate } from "@/lib/seed/snippets";
+import { extractVars, interpolate, SNIPPET_DEFAULTS } from "@/lib/seed/snippets";
 
 export default function SnippetsPage() {
   const [items, setItems] = useState<MemoryItem[]>([]);
@@ -45,12 +45,16 @@ export default function SnippetsPage() {
   const setVar = useCallback((id: string, k: string, v: string) => {
     setVars((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [k]: v } }));
   }, []);
-  const varsOf = useCallback((id: string, body: string): Record<string, string> => {
-    const bucket = vars[id] || {};
-    const out: Record<string, string> = {};
-    for (const k of extractVars(body)) out[k] = bucket[k] ?? "";
-    return out;
-  }, [vars]);
+  // 没有手动填过就回落到 seed 里的默认值 —— 否则点「复制」拿到的是 {{repo}} 字面量
+  const varsOf = useCallback(
+    (id: string, body: string, defaults?: Record<string, string>): Record<string, string> => {
+      const bucket = vars[id] || {};
+      const out: Record<string, string> = {};
+      for (const k of extractVars(body)) out[k] = bucket[k] ?? defaults?.[k] ?? "";
+      return out;
+    },
+    [vars],
+  );
 
   const save = () => {
     const title = draft.title.trim();
@@ -82,7 +86,7 @@ export default function SnippetsPage() {
   };
 
   const copy = async (it: MemoryItem) => {
-    const text = interpolate(it.body, varsOf(it.id, it.body));
+    const text = interpolate(it.body, varsOf(it.id, it.body, SNIPPET_DEFAULTS[it.id]), SNIPPET_DEFAULTS[it.id]);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(it.title);
@@ -241,7 +245,7 @@ export default function SnippetsPage() {
                   )}
 
                   <pre className="mt-3 overflow-x-auto rounded-xl bg-zinc-900 px-3.5 py-3 font-mono text-[11px] leading-relaxed text-zinc-100">
-                    {interpolate(it.body, varsOf(it.id, it.body))}
+                    {interpolate(it.body, varsOf(it.id, it.body, SNIPPET_DEFAULTS[it.id]), SNIPPET_DEFAULTS[it.id])}
                   </pre>
 
                   <div className="mt-3 flex items-center gap-2">

@@ -12,9 +12,28 @@ export function extractVars(body: string): string[] {
   return [...out];
 }
 
-/** 用变量表插值 */
-export function interpolate(body: string, vars: Record<string, string>): string {
-  return body.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, k: string) => vars[k] ?? "");
+/**
+ * 各片段变量的**默认值**（2026-10-02 补）。
+ * 没有默认值的话，用户点「复制」拿到的是 `{{repo}}` 这种字面量，等于没复制。
+ * 键 = 片段 id，值 = { 变量名: 默认值 }。
+ */
+export const SNIPPET_DEFAULTS: Record<string, Record<string, string>> = {
+  "sn-001": { repo: "/root/Notelab/notelab-c" },
+  "sn-002": { repo: "/root/Notelab/notelab-c" },
+  "sn-005": { sql: "SELECT * FROM question ORDER BY hot_score DESC LIMIT 20" },
+  "sn-006": { port: "9337", profile: "/root/Notelab/notelab-c/.agent/tmp/cdp-profile", w: "1440", h: "900" },
+  "sn-008": { repo_dir: "/root/Notelab/notelab-c", proc_file: "process.json — pm2 start ecosystem" },
+  "sn-011": { css_path: "/_next/static/css/xxxxxx.css" },
+  "sn-012": { "周次": "w3", "主题": "认证与 RBAC" },
+};
+
+/** 用变量表插值；vars 为空时回落到 defaults（这样复制出来是可直接用的命令） */
+export function interpolate(body: string, vars: Record<string, string>, defaults?: Record<string, string>): string {
+  return body.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, k: string) => {
+    const v = vars[k];
+    if (v !== undefined && v !== "") return v;
+    return defaults?.[k] ?? "";
+  });
 }
 
 export const SEED_SNIPPETS: SeedItem[] = [
@@ -24,6 +43,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "git 拉齐服务器代码（防御性）",
     body: "cd {{repo}}\ngit fetch --prune\ngit reset --hard origin/main\ngit clean -fd",
     tags: ["Git", "部署"],
+    extra: SNIPPET_DEFAULTS["sn-001"],
     extra: { note: "分支不是 main 时把 origin/main 换掉" },
   },
   {
@@ -32,6 +52,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "C 端全量部署（含架构门禁）",
     body: "ssh myapp 'cd /root/Notelab/notelab-c \\\n  && git pull --ff-only \\\n  && npm run build \\\n  && pm2 restart notelab-c'\n# 紧急绕过门禁：SKIP_ARCH=1",
     tags: ["部署", "notelab-c"],
+    extra: SNIPPET_DEFAULTS["sn-002"],
   },
   {
     id: "sn-003",
@@ -53,6 +74,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "EXPLAIN 对比（同一个查询前后）",
     body: "EXPLAIN ANALYZE {{sql}};\n-- 看 key（实际选用），别看 possible_keys；\n-- filesort 不是原罪，行数才是",
     tags: ["MySQL", "调优"],
+    extra: SNIPPET_DEFAULTS["sn-005"],
   },
   {
     id: "sn-006",
@@ -60,6 +82,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "CDP 抓页面几何（headless Chrome）",
     body: "chrome --headless=new --remote-debugging-port={{port}} \\\n  --user-data-dir={{profile}} --no-proxy-server \\\n  --window-size={{w}},{{h}} about:blank\n# ⚠️ 必须 --no-proxy-server：本机 HTTPS_PROXY 会被继承导致整页连不上",
     tags: ["CDP", "验证"],
+    extra: SNIPPET_DEFAULTS["sn-006"],
   },
   {
     id: "sn-007",
@@ -74,6 +97,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "pm2 启动（cwd 必须等于仓目录）",
     body: "cd {{repo_dir}} && pm2 start {{proc_file}}\n# ⚠️ 改过启动配置必须 pm2 save，否则重启机器回到旧配置",
     tags: ["PM2", "部署"],
+    extra: SNIPPET_DEFAULTS["sn-008"],
   },
   {
     id: "sn-009",
@@ -95,6 +119,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "tailwind 任意值类验证（部署后）",
     body: "curl -s https://haolo.cloud{{css_path}} | grep -c 'min-w-\\[15\\.5rem\\]'\n# 部署三项验证：HTTP 状态码 / 字节数变化 / 任意值类真的进了生产 CSS",
     tags: ["Tailwind", "验证"],
+    extra: SNIPPET_DEFAULTS["sn-011"],
   },
   {
     id: "sn-012",
@@ -102,6 +127,7 @@ export const SEED_SNIPPETS: SeedItem[] = [
     title: "阶段文档一键开工",
     body: "bash scripts/new-stage.sh {{周次}} {{主题}}\n# 从 stages/_TEMPLATE.md 生成空文档，把开工成本压到接近零",
     tags: ["流程", "qa-community"],
+    extra: SNIPPET_DEFAULTS["sn-012"],
   },
 ];
 
