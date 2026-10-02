@@ -165,7 +165,7 @@ export function search(items: MemoryItem[], q: string): MemoryItem[] {
 
 /* ============================ 种子注入 ============================ */
 
-export function seedOnce(items: MemoryItem[]): number {
+export function seedOnce(items: SeedItem[]): number {
   const store = readStore();
   const have = new Set(store.items.map((it) => `${it.kind}:${it.title}`));
   let added = 0;

@@ -198,7 +198,9 @@ export default function ExcerptsPage() {
                   {it.tags.map((t) => (
                     <span key={t} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-500">#{t}</span>
                   ))}
-                  {it.extra?.source && (
+                  {/* ⚠️ extra 是 Record<string, unknown>：`it.extra?.source && x` 会让整个表达式带 unknown 类型，
+                      TS2322 报 unknown 不能作 ReactNode。用 Boolean() 先收敛成布尔。 */}
+                  {Boolean(it.extra?.source) && (
                     <span className="text-[10px] text-zinc-400">来源：{String(it.extra.source)}</span>
                   )}
                   <span className="ml-auto text-[10px] text-zinc-400">
