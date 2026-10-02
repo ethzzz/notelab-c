@@ -10,7 +10,7 @@
 //   所以改本机时间既不能让队伍提前回来，也领不到战利品。
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Clock, HardDriveDownload, Swords } from "lucide-react"
+import { Clock, HardDriveDownload, Swords } from "lucide-react"
 import {
   FLOORS, FLOOR_BY_ID, ROOMS, collectDispatch, fmtDuration, floorUnlocked, goldPerSec, loadDungeon,
   newSave, partyCap, partyReady, planDispatch, saveDungeon, serverNow, settleDispatch,
@@ -131,11 +131,9 @@ export default function DungeonPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 pt-16">
-      {/* 标题栏 */}
-      <div className="flex flex-wrap items-center gap-3 pt-8 pb-5">
-        <Link href="/games" className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700">
-          <ArrowLeft size={16} /> 游戏中心
-        </Link>
+      {/* 标题栏（2026-10-02：不再自带「← 游戏中心」返回——PlayShell 的 HUD 已常驻同一入口，
+          这里再放一枚就是双份返回；顶部也不再叠 pt-8，根容器的 pt-16 已经给 HUD 让过位） */}
+      <div className="flex flex-wrap items-center gap-3 pb-5">
         <span className="text-2xl">🏰</span>
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-zinc-800">地牢领主</h1>
