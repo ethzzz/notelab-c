@@ -1,11 +1,11 @@
-import type { MemoryItem } from "@/lib/memory";
+import type { SeedItem } from "@/lib/memory";
 
 /**
  * 速查卡种子 —— 全部来自本项目 **真踩过** 的坑，不是凑数的百科词条。
  * 由大模型在开发阶段产出并固化成常量；运行期不依赖任何大模型接口。
  * 重灌入口：scripts/gen-seed.mjs（key 恢复后可增量补第二批，不改工具代码）。
  */
-export const SEED_FLASHCARDS: MemoryItem[] = [
+export const SEED_FLASHCARDS: SeedItem[] = [
   {
     id: "fc-001",
     kind: "flashcard",

@@ -1,11 +1,11 @@
-import type { MemoryItem } from "@/lib/memory";
+import type { SeedItem } from "@/lib/memory";
 
 /**
  * 习惯定义种子。打卡日志另存（不塞进 MemoryItem，避免 body 被列表渲染污染）：
  *   localStorage key = notelab.habits.log.v1  → { "2026-10-02": { mood: 3, note: "" } }
  * 习惯本身走统一记忆层 kind='habit'，这样四个工具共用同一套 CRUD / 导出 / 云同步。
  */
-export const SEED_HABITS: MemoryItem[] = [
+export const SEED_HABITS: SeedItem[] = [
   {
     id: "hb-001",
     kind: "habit",

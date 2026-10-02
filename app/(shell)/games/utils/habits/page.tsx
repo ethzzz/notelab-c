@@ -14,7 +14,8 @@ import { upsert, remove, type MemoryItem } from "@/lib/memory";
 
 const LOG_KEY = "notelab.habits.log.v1";
 
-type LogMap = Record<string, { mood?: number; note?: string }>;
+/** 日期 → { 习惯id: 是否完成 }。习惯 id 是运行时字符串，必须给索引签名，否则 TS7053。 */
+type LogMap = Record<string, Record<string, unknown>>;
 
 function readLog(): LogMap {
   if (typeof window === "undefined") return {};
@@ -239,9 +240,9 @@ export default function HabitsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-medium text-zinc-800">{h.title}</span>
-                      {h.extra?.target && h.extra.target !== 1 && (
+                      {h.extra?.target !== undefined && Number(h.extra.target) !== 1 && (
                         <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500">
-                          {h.extra.target} 次/天
+                          {String(h.extra.target)} 次/天
                         </span>
                       )}
                     </div>

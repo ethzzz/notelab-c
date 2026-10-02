@@ -1,10 +1,10 @@
-import type { MemoryItem } from "@/lib/memory";
+import type { SeedItem } from "@/lib/memory";
 
 /**
  * 知识摘录种子 —— 摘录盒的记忆本体，将来 RAG 恢复可直接作为语料喂入。
  * 全部是工程判断力相关的可迁移结论，不是科普复述。
  */
-export const SEED_EXCERPTS: MemoryItem[] = [
+export const SEED_EXCERPTS: SeedItem[] = [
   {
     id: "ex-001",
     kind: "excerpt",

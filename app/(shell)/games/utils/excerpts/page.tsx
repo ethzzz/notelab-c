@@ -199,7 +199,7 @@ export default function ExcerptsPage() {
                     <span key={t} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] text-indigo-500">#{t}</span>
                   ))}
                   {it.extra?.source && (
-                    <span className="text-[10px] text-zinc-400">来源：{it.extra.source as string}</span>
+                    <span className="text-[10px] text-zinc-400">来源：{String(it.extra.source)}</span>
                   )}
                   <span className="ml-auto text-[10px] text-zinc-400">
                     {new Date(it.updatedAt).toLocaleDateString("zh-CN")}

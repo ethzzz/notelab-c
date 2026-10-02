@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@/lib/memory";
+import type { MemoryItem, SeedItem } from "@/lib/memory";
 import SEED_FLASHCARDS from "./flashcards";
 import SEED_EXCERPTS from "./excerpts";
 import SEED_SNIPPETS from "./snippets";
@@ -15,7 +15,7 @@ import { seedOnce } from "@/lib/memory";
  * 想增量补第二批（如 key 恢复后）：改 scripts/gen-seed.mjs 或直接在 seed/ 下加文件，
  * 再调 `ensureSeed()` 即可；seedOnce 按 `kind:title` 去重，不会覆盖用户已改过的条目。
  */
-export const SEED_ITEMS: MemoryItem[] = [
+export const SEED_ITEMS: SeedItem[] = [
   ...SEED_FLASHCARDS,
   ...SEED_EXCERPTS,
   ...SEED_SNIPPETS,

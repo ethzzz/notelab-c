@@ -37,6 +37,12 @@ export interface MemoryItem {
   seeded?: boolean;
 }
 
+/**
+ * 种子条目：只描述内容，时间戳入库时统一生成。
+ * 四个 seed 文件用它，避免把 createdAt/updatedAt 写成固定值或者在常量里算 Date.now()。
+ */
+export type SeedItem = Omit<MemoryItem, "createdAt" | "updatedAt">;
+
 const STORE_KEY = "notelab.memory.v1";
 
 /* ============================ 存储 ============================ */

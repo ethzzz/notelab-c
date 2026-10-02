@@ -1,4 +1,4 @@
-import type { MemoryItem } from "@/lib/memory";
+import type { SeedItem } from "@/lib/memory";
 
 /**
  * 片段库种子 —— 高频、可直接复制的片段。变量用 {{name}} 占位，界面渲染成输入框。
@@ -17,7 +17,7 @@ export function interpolate(body: string, vars: Record<string, string>): string 
   return body.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, k: string) => vars[k] ?? "");
 }
 
-export const SEED_SNIPPETS: MemoryItem[] = [
+export const SEED_SNIPPETS: SeedItem[] = [
   {
     id: "sn-001",
     kind: "snippet",

@@ -215,7 +215,7 @@ export default function SnippetsPage() {
                       </div>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
-                      <button onClick={openEdit(it)} className="rounded-lg border border-black/10 px-2 py-1 text-[11px] text-zinc-600 transition hover:bg-zinc-50">
+                      <button onClick={() => openEdit(it)} className="rounded-lg border border-black/10 px-2 py-1 text-[11px] text-zinc-600 transition hover:bg-zinc-50">
                         编辑
                       </button>
                       <button onClick={() => del(it.id)} className="rounded-lg border border-black/10 px-2 py-1 text-[11px] text-red-500 transition hover:bg-red-50">
