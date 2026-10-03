@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 习惯打卡 · 连续天数（/games/utils/habits）
+ * 习惯打卡 · 连续天数（/utils/habits）
  *
  * 习惯定义走统一记忆层 kind='habit'（复用 CRUD / 导出 / 云同步）；
  * 每日打卡日志单独存 notelab.habits.log.v1 —— 塞进 MemoryItem.body 会污染列表渲染。

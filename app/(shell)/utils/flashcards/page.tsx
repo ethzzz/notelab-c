@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 速查卡 · 间隔重复（/games/utils/flashcards）
+ * 速查卡 · 间隔重复（/utils/flashcards）
  *
  * 运行期零大模型依赖：卡片来自统一记忆层 kind='flashcard'（预置种子 + 用户自己录入），
  * 排期用纯函数 SM-2（lib/sm2.ts），全部本地计算。

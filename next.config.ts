@@ -5,8 +5,16 @@ const nextConfig: NextConfig = {
   // 去掉 basePath，让游戏路由落到 /games/*、首页落到 /；其余前缀（/blog /vs /thunder /ailab /admin /api）由 nginx 各自处理。
   async redirects() {
     return [
-      // 每日翻译迁到游戏中心「工具」子模块：旧 /translate 永久跳到 /games/utils/translate
-      { source: "/translate", destination: "/games/utils/translate", permanent: true },
+      // 2026-10-03：C 端工具从游戏中心命名空间里独立出来，统一落在 /utils/*（不再挂 /games）。
+      // 三条来源都要兜住：①最早的裸 /translate；②中枢期 /games/utils/*；③目录页本身。
+      { source: "/translate", destination: "/utils/translate", permanent: true },
+      { source: "/games/utils", destination: "/utils", permanent: true },
+      { source: "/games/utils/", destination: "/utils", permanent: true },
+      { source: "/games/utils/translate", destination: "/utils/translate", permanent: true },
+      { source: "/games/utils/flashcards", destination: "/utils/flashcards", permanent: true },
+      { source: "/games/utils/excerpts", destination: "/utils/excerpts", permanent: true },
+      { source: "/games/utils/snippets", destination: "/utils/snippets", permanent: true },
+      { source: "/games/utils/habits", destination: "/utils/habits", permanent: true },
 
       // 2026-10-01：游戏页从「套消费级 Shell」改成「全屏游戏台」(play) 路由组，
       // 整页 100dvh 即游戏区。URL 前缀由 /games/<game> 改为 /play/<game>，

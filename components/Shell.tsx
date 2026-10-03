@@ -9,12 +9,13 @@ import { resolveBgStyle, themeById } from "@/lib/themes"
 import { fetchMe, type CUser } from "@/lib/auth"
 import Modal from "@/components/ui/modal"
 import HoverMenu, { type HoverMenuItem } from "@/components/hover-menu"
-import { LogOut, User as UserIcon, Gamepad2, Languages, ExternalLink } from "lucide-react"
+import { LogOut, User as UserIcon, Gamepad2, Languages, ExternalLink, Wrench } from "lucide-react"
 
-// 移动端底部 Tab（桌面导航为 游戏中心 悬浮菜单 + 返回主页）
+// 移动端底部 Tab（桌面导航为 游戏中心 / 工具 悬浮菜单 + 返回主页）
 const NAV = [
   { href: "/games", name: "游戏中心", icon: Gamepad2 },
-  { href: "/games/utils/translate", name: "每日翻译", icon: Languages },
+  { href: "/utils", name: "工具", icon: Wrench },
+  { href: "/utils/translate", name: "每日翻译", icon: Languages },
 ]
 
 // 游戏中心子模块的子菜单（悬停展开）。
@@ -22,6 +23,18 @@ const NAV = [
 // 因此这里只保留游戏中心首页一项（原先的 trpg/spire/vs/thunder 四个直接入口已移除）。
 const GAME_MENU: HoverMenuItem[] = [
   { href: "/games", name: "游戏中心首页", desc: "全部游戏一览", emoji: "🎮", exact: true },
+]
+
+// 效率工具子菜单（悬停展开）。
+// ⚠️ 2026-10-03 口径：工具从「游戏中心」命名空间里独立出来，统一挂在 /utils/* 下，
+// 与游戏区（/games、/play）彻底分开，别再把工具塞回 /games/utils。
+const TOOL_MENU: HoverMenuItem[] = [
+  { href: "/utils", name: "工具总览", desc: "全部效率工具一览", emoji: "🧰", exact: true },
+  { href: "/utils/translate", name: "每日翻译", desc: "每日句子 + AI 判分", emoji: "🌐" },
+  { href: "/utils/flashcards", name: "速查卡", desc: "SM-2 间隔重复记忆", emoji: "🃏" },
+  { href: "/utils/excerpts", name: "知识摘录盒", desc: "摘录检索 + 导出", emoji: "📦" },
+  { href: "/utils/snippets", name: "模板片段库", desc: "命令片段一键复制", emoji: "🧩" },
+  { href: "/utils/habits", name: "习惯打卡", desc: "连续天数 + 热力图", emoji: "✅" },
 ]
 
 export default function Shell({ children }: { children: ReactNode }) {
@@ -66,9 +79,10 @@ export default function Shell({ children }: { children: ReactNode }) {
   const bgStyle = resolveBgStyle(bg)
   const dark = !!themeById(bg?.theme)?.dark
   const avatarChar = String(user?.nickname || user?.username || "?").trim().charAt(0).toUpperCase()
-  // 移动端 tab 高亮：/games 为游戏中心，需排除其下的 /games/utils 工具页（避免与「每日翻译」重复高亮）
+  // 移动端 tab 高亮：/games 为游戏中心（/games 首页与 /games/<game> 同属一项），
+  // 工具区 /utils/* 是独立一级，不参与 /games 的高亮。
   const isActive = (href: string) => {
-    if (href === "/games") return pathname === "/games" || (pathname.startsWith("/games/") && !pathname.startsWith("/games/utils"))
+    if (href === "/games") return pathname === "/games" || pathname.startsWith("/games/")
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
   }
@@ -86,6 +100,7 @@ export default function Shell({ children }: { children: ReactNode }) {
         {/* 桌面端导航：游戏中心 悬浮菜单 + 返回主页（home 主模块） */}
         <nav className="hidden md:flex items-center gap-1 ml-4">
           <HoverMenu label="游戏中心" icon={<Gamepad2 size={15} />} items={GAME_MENU} pathname={pathname} dark={dark} />
+          <HoverMenu label="工具" icon={<Wrench size={15} />} items={TOOL_MENU} pathname={pathname} dark={dark} />
           {/* 返回主站：home 个人主页为上层主模块，普通 <a> 跳出 basePath */}
           <a href="/"
             className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ${dark ? "text-zinc-300 hover:bg-white/10 hover:text-white" : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"}`}>

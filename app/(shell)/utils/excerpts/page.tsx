@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 知识摘录盒（/games/utils/excerpts）
+ * 知识摘录盒（/utils/excerpts）
  *
  * 记忆本体：kind='excerpt'，带 tag + 本地全文检索 + Markdown/JSON 导出。
  * 运行期零大模型依赖 —— 摘录是你自己记的，将来 RAG 恢复可直接拿这份语料喂。
