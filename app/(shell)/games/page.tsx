@@ -27,6 +27,10 @@ const GAMES = [
     href: "/play/dungeon", emoji: "🏰", name: "地牢领主", tag: "经营养成 · 派遣放置",
     desc: "建造地下城设施、招募英雄并派遣探索。离线也在产出，每天回来看一眼就够了。",
   },
+  {
+    href: "/play/loot", emoji: "🪙", name: "摸金行动", tag: "搜刮撤离 · 风险博弈",
+    desc: "带装备进图，在容器里摸金，决定什么时候跑。撤离成功物品进仓库，失败全丢。",
+  },
 ]
 
 export default function HomePage() {
