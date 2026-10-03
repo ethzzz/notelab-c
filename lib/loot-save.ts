@@ -4,7 +4,8 @@ import { loadGame, saveGame } from "./gameSave"
 
 export const LOOT_GAME_CODE = "loot"
 
-export interface LootStackItem { itemId: string; qty: number }
+/** 仓库一行。`unit` = 入库时钉住的回收单价（含当时地图的价值倍率）；旧档没有则按标准倍率折算。 */
+export interface LootStackItem { itemId: string; qty: number; unit?: number }
 
 /** 存档结构（version 变更时需写迁移函数：读旧版补默认值） */
 export interface LootSave {
@@ -40,7 +41,9 @@ export function normalizeSave(raw: any, initialCoins: number): LootSave {
     coins: typeof raw.coins === "number" && Number.isFinite(raw.coins) ? raw.coins : b.coins,
     stash: Array.isArray(raw.stash)
       ? raw.stash.filter((s: any) => s && typeof s.itemId === "string").map((s: any) => ({
-          itemId: s.itemId, qty: typeof s.qty === "number" ? s.qty : 1 }))
+          itemId: s.itemId, qty: typeof s.qty === "number" ? s.qty : 1,
+          unit: typeof s.unit === "number" && Number.isFinite(s.unit) ? Math.round(s.unit) : undefined,
+        }))
       : [],
     stats: {
       runs: raw.stats?.runs ?? 0, extracts: raw.stats?.extracts ?? 0,

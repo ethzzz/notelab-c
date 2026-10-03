@@ -164,6 +164,31 @@ export function rollItem(pool: LootPoolEntry[], rarity: Rarity, itemsById: Map<s
   return itemsById.get(cands[cands.length - 1].itemId) ?? null
 }
 
+/**
+ * 保底抽取：在 minRarity **及以上**找候选，该档池子为空就往更高档找。
+ *
+ * ⚠️ 为什么不能直接 `rollItem(pool, minRarity, …)`：如果掉落表里根本没有该档候选，
+ *    rollItem 返回 null —— 保底会**静默失效**（`applyPity` 已把计数清零，却一件没出，
+ *    玩家永远等不到那次"必出"）。这里回退到更高的档，保证"配了保底就一定出货"；
+ *    连更高档都没有候选才返回 null（由 B 端「该档无线索」告警兜住）。
+ *
+ * 随机数消耗：rollItem 只在有候选时才取随机数，所以空档不会多消耗 —— 与旧行为逐位一致。
+ */
+export function pickAtLeast(pool: LootPoolEntry[], minRarity: Rarity, itemsById: Map<string, LootItem>, rng: () => number): LootItem | null {
+  const from = Math.max(0, RARITY_ORDER.indexOf(minRarity))
+  for (let i = from; i < RARITY_ORDER.length; i++) {
+    const it = rollItem(pool, RARITY_ORDER[i], itemsById, rng)
+    if (it) return it
+  }
+  // 池子里没有「该档及以上」的候选 → 退而求最好的一档（至少让玩家拿到池子里的顶尖货），
+  // 同时 B 端「保底档无线索」告警提示去补候选，别让这次保底白等。
+  for (let i = from - 1; i >= 0; i--) {
+    const it = rollItem(pool, RARITY_ORDER[i], itemsById, rng)
+    if (it) return it
+  }
+  return null
+}
+
 export interface SearchInput {
   container: LootContainer
   table: LootTable | undefined
@@ -191,7 +216,7 @@ export function searchContainer(input: SearchInput): SearchResult {
   for (let i = 0; i < n; i++) {
     let pick: LootItem | null = null
     if (i === 0 && forceRarity) {
-      pick = rollItem(table?.pool ?? [], forceRarity, itemsById, rng)
+      pick = pickAtLeast(table?.pool ?? [], forceRarity, itemsById, rng)
     } else {
       const r = resolveRarity(container.rarityWeights, table, itemsById, rng, tierBoost)
       pick = r ? rollItem(table?.pool ?? [], r, itemsById, rng) : null
@@ -206,32 +231,61 @@ export function searchContainer(input: SearchInput): SearchResult {
 export type PityState = Record<string, number>
 
 /**
- * 保底计数更新：
- * 本次最高档 < pity.minRarity → 计数 +1；达到 afterRuns → 返回 forceRarity 并把计数清零；否则清零。
- * 仅对配了 pity 的容器有作用。
+ * 保底计数：下一次开该容器时是否要强制出档（**只读**，不改变计数）。
+ * 调用方必须在**开容器之前**用它决定 force，才能保证保底真的落到格子里。
+ */
+export function pendingPity(state: PityState, container: LootContainer): Rarity | null {
+  const p = container.pity
+  if (!p) return null
+  return (state[container.id] || 0) >= p.afterRuns ? p.minRarity : null
+}
+
+/**
+ * 开完一个容器后更新保底计数。
+ *
+ * ⚠️ 2026-10-03 修的**真 bug**：旧实现「计数一到 afterRuns 就把它清零，并把 force 作为返回值」，
+ *    但调用方是**在开容器之前**读计数来决定要不要强制的 —— 于是计数已被清零、返回值又被丢弃，
+ *    保底**永远不会触发**。跑 10,000 局一次都没触发才暴露出来（`applyPity` 的 force 从没人用）。
+ *    现在改成：计数到 afterRuns 就**停在**那里（clamp，不清零），等下一次开容器时被消费；
+ *    只有真的消费掉（forced = 本次已强制出货）才清零。
+ *
+ * @param forced 本次是否已按保底强制出货（= 消费掉这次保底）
+ * @returns state 新计数；force 更新后是否仍有待触发的保底
  */
 export function applyPity(
-  state: PityState, container: LootContainer, maxRarity: Rarity | null,
+  state: PityState, container: LootContainer, maxRarity: Rarity | null, forced = false,
 ): { state: PityState; force: Rarity | null } {
   const p = container.pity
   if (!p) return { state, force: null }
   const cur = state[container.id] || 0
+  // 保底已消费 → 归零
+  if (forced) return { state: { ...state, [container.id]: 0 }, force: null }
   const met = maxRarity != null && RARITY_ORDER.indexOf(maxRarity) >= RARITY_ORDER.indexOf(p.minRarity)
   if (met) {
     if (cur === 0) return { state, force: null }
     return { state: { ...state, [container.id]: 0 }, force: null }
   }
-  const next = cur + 1
-  if (next >= p.afterRuns) return { state: { ...state, [container.id]: 0 }, force: p.minRarity }
-  return { state: { ...state, [container.id]: next }, force: null }
+  // 未达标 → 计数 +1，但**不清零**（到顶就停在顶，等下一位来消费）
+  const next = Math.min(cur + 1, p.afterRuns)
+  const ns = { ...state, [container.id]: next }
+  return { state: ns, force: next >= p.afterRuns ? p.minRarity : null }
 }
 
 // ---------------- 结算 ----------------
 
-/** 回收价 = 物品覆盖值，否则 round(baseValue × recycleRate) */
-export function recycleValue(item: LootItem, balance: LootBalance): number {
-  if (item.recycleValue != null && Number.isFinite(item.recycleValue)) return Math.round(item.recycleValue)
-  return Math.round(item.baseValue * balance.recycleRate)
+/**
+ * 回收价（玩家真正到手的金币）＝ 展示价 × 回收率。
+ *
+ * ⚠️ `mult` 是地图价值倍率（`LootMap.valueMult`），**必须传对**：
+ *    结算那一刻要传本图的倍率，否则会出现"结算说可回收 333、回仓库却变成另一个数"。
+ *    仓库里的物品已经离开地图、没有 mult 上下文，所以入库时把单价（unit）一并存下来。
+ *    （2026-10-03：此前实现漏了 mult —— `valueMult` 只改了展示价、没进回收价，
+ *     于是后台 EV 面板算的经济和游戏里真实到手的钱差了 valueMult 倍。）
+ */
+export function recycleValue(item: LootItem, balance: LootBalance, mult = 1): number {
+  const m = Number.isFinite(mult) && mult > 0 ? mult : 1
+  if (item.recycleValue != null && Number.isFinite(item.recycleValue)) return Math.round(item.recycleValue * m)
+  return Math.round(item.baseValue * m * balance.recycleRate)
 }
 
 /** 结算展示价 = baseValue × 地图价值倍率 */

@@ -79,11 +79,14 @@ const DEFAULT_TABLE_LIST: LootTable[] = [
 ]
 
 const DEFAULT_MAP_LIST: LootMap[] = [
+  // ⚠️ port 的门槛 400 是 2026-10-03 W3 模拟（10,000 局）调出来的：原先 900 时
+  //「每次成功撤离回收 1671 ÷ 900 × 撤离率 0.55」只有 1.02× —— 打这张图不划算。
+  // 背包上限 8 格决定"带得走的"远少于 33 个槽位能给的，所以门槛必须按"能带走的"定。
   { id: "depot", name: "仓库区", timeLimitSec: 300, riskLimit: 20, valueMult: 0.35, tierBoost: 0,
     entry: { coins: 200, items: [], minExtracts: 0, groups: [] },
     containers: [{ containerId: "ct-crate", count: 4 }, { containerId: "ct-safe", count: 1 }], extractPoints: 2 },
   { id: "port", name: "港口集装箱", timeLimitSec: 240, riskLimit: 30, valueMult: 0.50, tierBoost: 0.4,
-    entry: { coins: 900, items: [], minExtracts: 3, groups: [] },
+    entry: { coins: 400, items: [], minExtracts: 3, groups: [] },
     containers: [{ containerId: "ct-crate", count: 3 }, { containerId: "ct-tool", count: 3 }, { containerId: "ct-ammo", count: 2 },
       { containerId: "ct-med", count: 2 }, { containerId: "ct-safe", count: 2 }, { containerId: "ct-cage", count: 2 }], extractPoints: 3 },
 ]

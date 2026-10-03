@@ -7,7 +7,7 @@
 // ⚠️ LLM 依赖：无。本文件全程确定性计算。
 
 import {
-  RARITY_ORDER, applyPity, displayValue, findTable, indexItems, mulberry32, recycleValue,
+  RARITY_ORDER, applyPity, displayValue, findTable, indexItems, mulberry32, pickAtLeast, pendingPity, recycleValue,
   resolveRarity, rollItem,
   type LootContent, type LootItem, type LootMap, type Rarity,
 } from "./loot-engine"
@@ -15,8 +15,13 @@ import type { LootSave } from "./loot-save"
 
 // ---------------- 局内状态 ----------------
 
-/** 背包里的一件东西：item 是定义，value 是**结算展示价**（面值 × 地图价值倍率） */
-export interface BackpackEntry { item: LootItem; value: number }
+/**
+ * 背包里的一件东西。
+ * - `value`：**展示价**（面值 × 地图价值倍率），玩法里给玩家看的那个数；
+ * - `unit`：**回收单价**（＝ 展示价 × 回收率），入库时一起写进存档 ——
+ *   仓库里的东西已经离开地图、拿不到 mult，只能靠这个单价把"当时的价格"钉住。
+ */
+export interface BackpackEntry { item: LootItem; value: number; unit: number }
 
 /** 局内一个容器实例（同一容器配比多次出现时靠 key 区分） */
 export interface ContainerRuntime {
@@ -181,12 +186,14 @@ export function searchNext(raid: RaidState, content: LootContent, key: string): 
 
   const firstSlot = rt.picks.length === 0
   // 保底：本次是该容器首槽、且计数已到 → 强制出目标档
-  let force: Rarity | null = null
-  const pityCfg = def.pity
-  if (firstSlot && pityCfg && (raid.pity[def.id] || 0) >= pityCfg.afterRuns) force = pityCfg.minRarity
+  // （计数由 applyPity 维护：到顶后就停在那儿，直到被这里消费）
+  const force: Rarity | null = firstSlot ? pendingPity(raid.pity, def) : null
 
-  const r: Rarity | null = force ?? resolveRarity(def.rarityWeights, table, itemsById, next, map.tierBoost)
-  const pick = r ? rollItem(table?.pool ?? [], r, itemsById, next) : null
+  // 保底走 pickAtLeast：该档池子为空时回退更高档，绝不"计数清零但一件没出"
+  const r: Rarity | null = force ? null : resolveRarity(def.rarityWeights, table, itemsById, next, map.tierBoost)
+  const pick = force
+    ? pickAtLeast(table?.pool ?? [], force, itemsById, next)
+    : r ? rollItem(table?.pool ?? [], r, itemsById, next) : null
 
   const picks = [...rt.picks, pick]
   const maxIdx = pick ? Math.max(rt.maxIdx, RARITY_ORDER.indexOf(pick.rarity)) : rt.maxIdx
@@ -203,7 +210,7 @@ export function searchNext(raid: RaidState, content: LootContent, key: string): 
     if (backpack.length >= bagCap) {
       log.push({ t: `背包已满（${bagCap}），丢弃 ${pick.emoji ?? "📦"} ${pick.name}`, kind: "bad" })
     } else {
-      backpack = [...backpack, { item: pick, value: v }]
+      backpack = [...backpack, { item: pick, value: v, unit: recycleValue(pick, content.balance, map.valueMult) }]
       picked = true
       log.push({ t: `${pick.emoji ?? "📦"} ${pick.name} · ${v}（${pick.rarity}）`, kind: "good" })
     }
@@ -225,12 +232,12 @@ export function searchNext(raid: RaidState, content: LootContent, key: string): 
     if (per > 0) risk += per
   }
 
-  // 保底计数：容器摸完时结算
+  // 保底计数：容器摸完时结算（forced 告诉它本次保底是否已经被消费）
   let pity = raid.pity
   const done = picks.length >= rt.slots
   if (done && def.pity) {
     const maxRarity = maxIdx >= 0 ? RARITY_ORDER[maxIdx] : null
-    pity = applyPity(pity, def, maxRarity).state
+    pity = applyPity(pity, def, maxRarity, force != null).state
   }
 
   const base: RaidState = {
@@ -258,7 +265,7 @@ export function finalize(
   content: LootContent,
 ): RaidState {
   const gross = raid.backpack.reduce((s, b) => s + b.value, 0)
-  const payout = raid.backpack.reduce((s, b) => s + recycleValue(b.item, content.balance), 0)
+  const payout = raid.backpack.reduce((s, b) => s + b.unit, 0)
   const result: RaidResult = {
     success: outcome.success,
     reason: outcome.reason,
@@ -281,13 +288,18 @@ export function commitResult(raid: RaidState, save: LootSave): LootSave {
   if (!r.success) {
     return { ...save, pity: raid.pity, stats: { ...save.stats, failed: save.stats.failed + 1 } }
   }
-  // 入仓库：同 itemId 累加
-  const merged = new Map(save.stash.map((s) => [s.itemId, s.qty]))
-  for (const b of r.backpack) merged.set(b.item.id, (merged.get(b.item.id) ?? 0) + 1)
+  // 入仓库：按「itemId + 回收单价」合并 —— 同一件东西从不同倍率的图带出来，价格本就不同，
+  // 合并成一个价会悄悄抹掉差价（仓库里同 id 两行是正常的）。
+  const merged = new Map(save.stash.map((s) => [`${s.itemId}@${s.unit ?? ""}`, { itemId: s.itemId, qty: s.qty, unit: s.unit }]))
+  for (const b of r.backpack) {
+    const k = `${b.item.id}@${b.unit}`
+    const cur = merged.get(k)
+    merged.set(k, { itemId: b.item.id, qty: (cur?.qty ?? 0) + 1, unit: b.unit })
+  }
   return {
     ...save,
     pity: raid.pity,
-    stash: Array.from(merged, ([itemId, qty]) => ({ itemId, qty })),
+    stash: Array.from(merged.values()),
     stats: {
       ...save.stats,
       extracts: save.stats.extracts + 1,
@@ -298,17 +310,21 @@ export function commitResult(raid: RaidState, save: LootSave): LootSave {
 
 // ---------------- 仓库 / 回收 / 救济 ----------------
 
-/** 仓库里某件物品的回收价（按当前 balance 折算） */
-export function stashSellValue(itemId: string, content: LootContent): number {
+/**
+ * 仓库里某件物品的回收价：优先用入库时钉住的单价（含当时的地图倍率）。
+ * 旧存档没有 unit 时按"标准倍率"折算（1×），不会算不出来。
+ */
+export function stashSellValue(itemId: string, content: LootContent, unit?: number): number {
+  if (unit != null && Number.isFinite(unit)) return Math.round(unit)
   const item = content.items.find((i) => i.id === itemId)
   if (!item) return 0
-  return recycleValue(item, content.balance)
+  return recycleValue(item, content.balance, 1)
 }
 
 /** 一键回收：全部换成金币（返回新的存档） */
 export function sellStash(save: LootSave, content: LootContent): { save: LootSave; gained: number } {
   let gained = 0
-  for (const s of save.stash) gained += stashSellValue(s.itemId, content) * s.qty
+  for (const s of save.stash) gained += stashSellValue(s.itemId, content, s.unit) * s.qty
   return { save: { ...save, coins: save.coins + gained, stash: [] }, gained }
 }
 
@@ -341,9 +357,9 @@ export function stashSorted(save: LootSave, content: LootContent): { item: LootI
   for (const s of save.stash) {
     const item = content.items.find((i) => i.id === s.itemId)
     if (!item) continue
-    out.push({ item, qty: s.qty, sell: recycleValue(item, content.balance) })
+    out.push({ item, qty: s.qty, sell: stashSellValue(s.itemId, content, s.unit) })
   }
-  return out.sort((a, b) => RARITY_ORDER.indexOf(b.item.rarity) - RARITY_ORDER.indexOf(a.item.rarity) || b.item.baseValue - a.item.baseValue)
+  return out.sort((a, b) => RARITY_ORDER.indexOf(b.item.rarity) - RARITY_ORDER.indexOf(a.item.rarity) || b.sell - a.sell)
 }
 
 /** 剩余可摸槽数（UI 进度用） */

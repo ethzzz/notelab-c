@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { loadLootContent, type LoadedLoot } from "@/lib/loot-content"
 import { RARITY_LABEL, type LootContent, type LootItem, type LootMap, type Rarity } from "@/lib/loot-engine"
 import { loadLootSave, saveLootSave, type LootSave } from "@/lib/loot-save"
+import { autoPageView, initTrack, track } from "@/lib/track"
 import {
   canRescue, checkEntry, commitResult, doRescue, finalize, remainingSlots, searchNext, sellStash,
   stashSorted, startRaid,
@@ -37,6 +38,13 @@ const fmtMs = (ms: number) => {
 
 const CARD = "rounded-2xl border border-black/5 bg-white/70 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5"
 
+/** 结算原因 → 埋点用的稳定码（文案会改，码不改；P0 契约里 props 不该放中文长句） */
+const reasonCode = (r: string): string =>
+  r === "撤离成功" ? "extract"
+    : r === "超时未撤离" ? "timeout"
+      : r === "主动放弃" ? "abandon"
+        : r.startsWith("风险累积超过上限") ? "risk" : "other"
+
 export default function LootPage() {
   const [data, setData] = useState<LoadedLoot | null>(null)
   const [save, setSave] = useState<LootSave | null>(null)
@@ -51,8 +59,11 @@ export default function LootPage() {
   const contentRef = useRef<LootContent | null>(null)
   contentRef.current = content
   const committedRef = useRef<number | null>(null)
+  const raidStartRef = useRef<number>(0)
 
   useEffect(() => {
+    initTrack()
+    autoPageView()
     let alive = true
     loadLootContent().then(async (d) => {
       if (!alive) return
@@ -113,6 +124,19 @@ export default function LootPage() {
     const ns = commitResult(raid, save)
     setSave(ns)
     persist(ns)
+    // 埋点：一局的终局结果（本地队列，P0 上线即接）。reason_code 用稳定码而非文案。
+    if (raid.result) {
+      track("loot_raid_settle", {
+        map_id: raid.mapId,
+        success: raid.result.success,
+        reason_code: reasonCode(raid.result.reason),
+        haul: raid.result.gross,
+        items: raid.result.backpack.length,
+        risk: raid.risk,
+        containers: raid.containers.filter((c) => c.picks.length > 0).length,
+        duration_ms: raidStartRef.current ? Date.now() - raidStartRef.current : 0,
+      })
+    }
   }, [raid, save, persist])
 
   // ---------------- 进场 / 撤离 / 放弃 ----------------
@@ -125,6 +149,10 @@ export default function LootPage() {
     const nextSeed = (Date.now() ^ Math.floor(Math.random() * 0x100000000)) >>> 0
     const { raid: r, save: s } = startRaid(content, map, save, nextSeed)
     committedRef.current = null
+    raidStartRef.current = Date.now()
+    // 埋点：进图（game_start 是 P0 已有事件名，game_code 固定 loot）
+    track("game_start", { game_code: "loot" })
+    track("loot_raid_start", { map_id: map.id, entry_coins: map.entry.coins })
     setRaid(r)
     setSave(s)
     persist(s)
@@ -174,12 +202,14 @@ export default function LootPage() {
     if (!content || !save) return
     const { save: ns, gained } = sellStash(save, content)
     setSave(ns); persist(ns)
+    track("loot_stash_recycle", { items: save.stash.reduce((s, x) => s + x.qty, 0), gained })
     say(`回收完成，获得 💰${gained}`)
   }
   const claimRescue = () => {
     if (!content || !save) return
     const ns = doRescue(save, content, Date.now())
     setSave(ns); persist(ns)
+    track("loot_rescue_claim", { amount: content.balance.rescueCoins })
     say(`领取救济金 💰${content.balance.rescueCoins}`)
   }
 
@@ -214,6 +244,9 @@ export default function LootPage() {
         <span className="text-zinc-500">出击 {save.stats.runs} 次</span>
         <span className="text-emerald-600 dark:text-emerald-400">成功撤离 {save.stats.extracts}</span>
         <span className="text-rose-500">失败 {save.stats.failed}</span>
+        <span className="text-zinc-500">
+          撤离率 {save.stats.runs > 0 ? Math.round((save.stats.extracts / save.stats.runs) * 100) : 0}%
+        </span>
         <span className="text-zinc-500">最大一票 {save.stats.bestHaul}</span>
         <span className={`ml-auto rounded-full px-2.5 py-0.5 text-[11px] font-medium ${data.source === "published"
           ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
@@ -316,7 +349,7 @@ export default function LootPage() {
                   当前价值 <b className="text-amber-600 dark:text-amber-400">
                     {raid.backpack.reduce((s, b) => s + b.value, 0)}
                   </b> · 回收可得 ≈
-                  <b> {raid.backpack.reduce((s, b) => s + Math.round(b.item.recycleValue ?? b.item.baseValue * balance.recycleRate), 0)}</b>
+                  <b> {raid.backpack.reduce((s, b) => s + b.unit, 0)}</b>
                 </div>
               </div>
 
