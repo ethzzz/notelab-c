@@ -2,10 +2,11 @@
 // 每日英语翻译练习（C 端 · 玩家中心「工具」类子模块）：每天 0 点后端激活一组中文句子，按 3 阶梯逐句提交英文译文 → 大模型判分。
 // 取数/回填 GET /api/translate/today；提交 POST /api/translate/submit（同人同日同句覆盖，可反复重交）。
 // 登录墙由 ./layout.tsx 的 RequireAuth 负责，页面本体只管练习交互（风格照 app/trpg/play）。
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { apiJson, postJson } from "@/lib/api"
 import { useRequireAuth } from "@/lib/auth"
+import { track } from "@/lib/track"
 import {
   MODE_LABEL, TIER_STYLE, modeOf,
   type DailyRow, type ErrorTypeRow, type ProgressPayload,
@@ -18,6 +19,8 @@ export default function TranslatePage() {
   /** today = 今日练习；progress = 我的进度（习惯闭环） */
   const [tab, setTab] = useState<"today" | "progress">("today")
   const [data, setData] = useState<TodayPayload | null>(null)
+  /** translate_day_open 只在本次挂载报一次（load() 在提交后还会被调用） */
+  const dayOpenRef = useRef(false)
   const [progress, setProgress] = useState<ProgressPayload | null>(null)
   const [progLoading, setProgLoading] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -37,6 +40,11 @@ export default function TranslatePage() {
       .then((j) => {
         setData(j)
         setLoadError("")
+        // 埋点（PRD-P0 §4.2）：翻译页首载一次，has_today 用来判断「今天有没有可练习内容」
+        if (!dayOpenRef.current) {
+          dayOpenRef.current = true
+          track("translate_day_open", { has_today: !!j.group })
+        }
         // 回填：已提交句子的译文放回输入框，判分结果本地缓存一份（与后端一致）
         const nextDrafts: Record<number, string> = {}
         const nextResults: Record<number, Submission> = {}

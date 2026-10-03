@@ -17,6 +17,7 @@ import {
   startDispatch, tickSave, upgradeRoom,
   type DungeonSave, type OfflineResult, type Party, type PartyResult, type RoomKey,
 } from "@/lib/dungeon"
+import { track } from "@/lib/track"
 
 /** 倒计时：3:07 这种精确到秒的格式（fmtDuration 只到分，不够做倒计时） */
 function fmtLeft(sec: number): string {
@@ -103,6 +104,8 @@ export default function DungeonPage() {
     setPicked([])
     setErr(null)
     void persist(r.save, true)
+    // 埋点（PRD-P0 §4.2）：派出一次队伍 = 本局真正开始（看板/选人都不算）
+    track("game_start", { game_code: "dungeon" })
   }
 
   /** 回收：先过服务端闸门（登录态），再在本地按规则结算并回写 */

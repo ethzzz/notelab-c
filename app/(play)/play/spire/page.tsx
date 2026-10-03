@@ -18,6 +18,7 @@ import { makePublishedMapProvider } from "@/lib/spire-maps"
 import { setSpireAssets, spireAssetUrl, withBgImage, BG_HOME_SLOT } from "@/lib/spire-assets"
 import { sfx, unlockSpireAudio, isSpireMuted, setSpireMuted, type SpireSfx } from "@/lib/spire-audio"
 import { fetchMe } from "@/lib/auth"
+import { track } from "@/lib/track"
 
 // ---------------- 跨幕进度显示 ----------------
 /** 综合进度（层数）→ 「第 N 幕 · 第 M 层」；兼容旧纪录（老值按第 1 幕层数读） */
@@ -354,6 +355,8 @@ export default function SpirePage() {
     sp.current = newRun(charId)
     setPickOpen(false); setShowDeck(false); setRemoveMode(false); setCopyPick(false); setUpgradePick(false); setAction(null)
     bump()
+    // 埋点（PRD-P0 §4.2）：真正开局才算 game_start（进了选角页不算）
+    track("game_start", { game_code: "spire" })
   }
 
   // 结束时记录最佳进度（综合跨幕层数）
@@ -362,6 +365,25 @@ export default function SpirePage() {
     if (s.phase === "over") recordBest(runDepth(s))
     if (s.phase === "win") recordBest(runDepth(s))
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  })
+
+  /**
+   * 埋点（PRD-P0 §4.2）：每进一个节点报一次 spire_node_reached。
+   *
+   * ⚠️ **必须照抄上面 lastPhase 的写法**：`s` 存在 ref 里、靠 `bump()` 触发重渲染，
+   * 依赖数组 `[s]` 不会因相位变化而触发 —— 写成 `[s]` 的话这条埋点永远不报。
+   * 判定口径 = phase 进入 reward/rest/shop/event（四者都是「从地图点进了一个节点」后的落点），
+   * 用 `幕-层-phase` 做 key 去重，避免同一节点被重复上报。
+   */
+  const nodeKeyRef = useRef<string>("")
+  useEffect(() => {
+    const cur = sp.current
+    if (!cur) { nodeKeyRef.current = ""; return }
+    if (!["reward", "rest", "shop", "event"].includes(cur.phase)) { nodeKeyRef.current = ""; return }
+    const key = `${cur.act}-${cur.floor}-${cur.phase}`
+    if (nodeKeyRef.current === key) return
+    nodeKeyRef.current = key
+    track("spire_node_reached", { act: cur.act, depth: cur.floor })
   })
 
   const backToMenu = () => { sfx("select"); sp.current = null; setShowDeck(false); setRemoveMode(false); setPickOpen(false); setCopyPick(false); setUpgradePick(false); setAction(null); bump() }

@@ -8,6 +8,7 @@ import {
   type ToolCategoryId,
 } from '../data/tools';
 import { ArrowUpRightIcon, HourglassIcon } from './Icons';
+import { track } from '@/lib/track';
 import styles from './ToolsGrid.module.css';
 
 type CardStyle = CSSProperties & { '--tone'?: string };
@@ -67,11 +68,13 @@ export function ToolsGrid({ cat }: { cat: ToolCategoryId }): ReactNode {
         }
 
         const internal = t.href.startsWith('/');
+        const toolId = t.href.replace(/^\//, '').replace(/\//g, '_') || t.name;
         return (
           <a
             key={t.name}
             className={styles.card}
             href={t.href}
+            onClick={() => track("tool_open", { tool_id: toolId })}
             style={{ '--tone': tone, animationDelay: `${i * 45}ms` } as CardStyle}
             {...(internal ? {} : { target: '_blank', rel: 'noreferrer' })}
           >

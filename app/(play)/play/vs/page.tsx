@@ -5,6 +5,7 @@ import {
   type GameState, type Choice, type MetaUpg,
 } from "@/lib/vs-engine"
 import { loadGame, saveGame } from "@/lib/gameSave"
+import { track } from "@/lib/track"
 
 type Phase = "menu" | "play" | "levelup" | "pause" | "over" | "win"
 
@@ -41,6 +42,14 @@ export default function VsPage() {
   const bestRef = useRef(best); bestRef.current = best
 
   const setPhase = (ph: Phase) => { phaseRef.current = ph; setPhaseState(ph) }
+  // 埋点（PRD-P0 §4.2）：本场第一次真正开打才算 game_start（菜单/暂停/升级都不算）
+  const startedRef = useRef(false)
+  useEffect(() => {
+    if (phase === "play" && !startedRef.current) {
+      startedRef.current = true
+      track("game_start", { game_code: "vs" })
+    }
+  }, [phase])
   const togglePause = () => {
     if (phaseRef.current === "play") setPhase("pause")
     else if (phaseRef.current === "pause") setPhase("play")
