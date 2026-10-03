@@ -1,14 +1,9 @@
-// 摸金行动 · 埋点（本地优先，格式对齐 PRD-P0 契约）
+// 摸金行动 · 埋点（PRD-P0 全站数据闭环的 C 端 SDK）
 //
-// 为什么先落本地：PRD-P0（全站数据闭环）还没上线，事件表 analytics_events 与上报端点
-// `/api/c/track` 都不存在。但"等 P0 上线再埋"意味着上线前的数据全丢 —— 所以这一版
-// **只写本地队列**，字段名/结构/HMAC 位一律照 P0 契约来，P0 一上线把 flush 的传输接上即可，
-// 不需要回头改任何调用点（调用点只认 track(event, props)）。
-//
-// 三条 P0 的硬规矩（照抄，别自作聪明）：
+// 契约与实现细节全部对齐 PRD-P0（docs/PRD/PRD-P0-analytics.md）：
 //   ① props 一律**白名单过滤** —— 用户输入文本绝不进事件（会落明文库）；
 //   ② 埋点**绝不能**阻塞或影响交互 —— 失败静默，只允许 console.debug 一行；
-//   ③ 单批上限 20 条 / props 2000 字符（P0 §7），本地队列按此裁。
+//   ③ 单批上限 20 条 / props 2000 字符（§7），服务端会再校验一次。
 //
 // ⚠️ LLM 依赖：无。
 
@@ -22,8 +17,24 @@ const MAX_QUEUE = 600
 const MAX_PROPS_CHARS = 2000
 const MAX_STR = 32
 
-/** P0 已上线后改成 true（或设 window.__NOTELAB_TRACK__ = "/api/c/track"）即可开始上报 */
-const TRACK_ENDPOINT: string | null = null
+/** 攒够 5 条就发（PRD §4.4：攒 5 条 或 5 秒，先到先发） */
+const FLUSH_AT = 5
+/** 5 秒定时兜底（页面一直不产生第 5 条时也要把前面的发走） */
+const FLUSH_MS = 5000
+
+/** 上报端点。默认 /api/c/track（匿名可写，绕开 B 端 PermGuard）。 */
+const DEFAULT_ENDPOINT = "/api/c/track"
+
+/** 可用 `window.__NOTELAB_TRACK__` 覆盖：给字符串=换端点，给 null/""=临时关闭上报（本地调试用）。 */
+function endpoint(): string | null {
+  try {
+    if (typeof window !== "undefined") {
+      const o = (window as unknown as { __NOTELAB_TRACK__?: unknown }).__NOTELAB_TRACK__
+      if (o !== undefined) return typeof o === "string" && o ? o : null
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_ENDPOINT
+}
 
 export interface TrackEvent {
   ts: number
@@ -99,12 +110,42 @@ export function initTrack(): { anonId: string; sessionId: string } {
     }
     sessionId = s
   }
+  wireFlush()
   return { anonId, sessionId }
 }
 
 /** 当前登录的 C 端用户 id（由页面在拿到 /api/c/auth/me 后告知；不传则 null = 游客） */
 let userId: number | null = null
-export function setTrackUser(id: number | null): void { userId = id }
+
+/**
+ * 告知当前登录用户。**id 变化时自动做一次身份回填**（PRD §4.1：登录前后要连成一个人，
+ * 否则永远分不清 anon 与 user）。回填由服务端按 C 端会话取权威 user_id，客户端自报不算数。
+ */
+export function setTrackUser(id: number | null): void {
+  const changed = id !== userId
+  userId = id
+  if (changed && id != null) identify()
+}
+
+/** 已回填成功的用户 id（避免重复请求） */
+let identifiedFor = -1
+
+/** 把本设备的 anon_id 最近 30 分钟的游客事件回填到当前登录用户名下。失败静默。 */
+export function identify(): void {
+  try {
+    const id = userId
+    if (id == null || id === identifiedFor) return
+    const { anonId: a } = initTrack()
+    void fetch("/api/c/track/identify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anon_id: a }),
+      keepalive: true,
+    })
+      .then(() => { identifiedFor = id })
+      .catch(() => undefined)
+  } catch { /* 静默：埋点绝不阻塞交互 */ }
+}
 
 function sanitizeProps(event: string, props?: Record<string, unknown>): Record<string, unknown> {
   if (!props) return {}
@@ -164,6 +205,7 @@ export function track(event: string, props?: Record<string, unknown>): TrackEven
     const q = readQueue()
     q.push(ev)
     writeQueue(q)
+    if (q.length >= FLUSH_AT) flush()   // 先到先发：攒够 5 条立刻走
     return ev
   } catch {
     return null
@@ -183,19 +225,21 @@ export function autoPageView(referrer = ""): void {
 export interface FlushResult { sent: number; dropped: number; mode: "offline" | "posted" }
 
 /**
- * 批量吐出。
- * - P0 未上线（TRACK_ENDPOINT = null）：**只裁剪队列**（超 20 条的部分留待下批），
- *   返回 mode="offline"，不产生任何网络请求 —— 数据留在本地不丢。
- * - P0 上线后：按 P0 §4.3 走 sendBeacon + `text/plain`（不能带自定义 header）。
+ * 批量吐出（一批，最多 MAX_BATCH 条）。
+ * - 端点被关掉（`window.__NOTELAB_TRACK__ = null`）：**只裁剪队列**，返回 mode="offline"，
+ *   不产生网络请求 —— 数据留在本地不丢。
+ * - 端点可用：走 sendBeacon + `text/plain`（P0 坑 1：sendBeacon **不能带自定义 header**，
+ *   带 `application/json` 会让 Spring 解析 body 失败）；sendBeacon 不可用时回落 `fetch(keepalive)`。
  */
 export function flush(): FlushResult {
   try {
     const q = readQueue()
     if (!q.length) return { sent: 0, dropped: 0, mode: "offline" }
-    if (!TRACK_ENDPOINT) {
+    const ep = endpoint()
+    if (!ep) {
       if (typeof console !== "undefined") {
         // eslint-disable-next-line no-console
-        console.debug(`[track] offline: ${q.length} 条待上报（P0 上线后自动接）`)
+        console.debug(`[track] offline: ${q.length} 条待上报（端点已关闭）`)
       }
       return { sent: 0, dropped: 0, mode: "offline" }
     }
@@ -204,9 +248,9 @@ export function flush(): FlushResult {
     let ok = false
     try {
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-        ok = navigator.sendBeacon(TRACK_ENDPOINT, new Blob([body], { type: "text/plain;charset=UTF-8" }))
+        ok = navigator.sendBeacon(ep, new Blob([body], { type: "text/plain;charset=UTF-8" }))
       } else {
-        void fetch(TRACK_ENDPOINT, {
+        void fetch(ep, {
           method: "POST", keepalive: true,
           headers: { "Content-Type": "text/plain;charset=UTF-8" }, body,
         }).then(() => undefined).catch(() => undefined)
@@ -219,6 +263,31 @@ export function flush(): FlushResult {
   } catch {
     return { sent: 0, dropped: 0, mode: "offline" }
   }
+}
+
+/** 把队列整批排空（最多 5 轮 × 20 条）。用于页面隐藏/卸载 —— 那时再不发就没机会了。 */
+export function flushAll(): void {
+  try {
+    for (let i = 0; i < 5; i++) {
+      const r = flush()
+      if (r.mode === "offline" || r.sent === 0) return
+      if (readQueue().length < MAX_BATCH) return
+    }
+  } catch { /* 静默 */ }
+}
+
+/** 接线定时 flush 与页面隐藏 flush。幂等（模块级只装一次）。 */
+let wired = false
+export function wireFlush(): void {
+  if (wired || typeof window === "undefined") return
+  wired = true
+  try {
+    window.setInterval(() => { flush() }, FLUSH_MS)
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushAll()
+    })
+    window.addEventListener("pagehide", () => flushAll())
+  } catch { /* 静默 */ }
 }
 
 /** 本地事件条数 / 最近若干条（B 端与 CDP 验收用；也方便玩家自查） */

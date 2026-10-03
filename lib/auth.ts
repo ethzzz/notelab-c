@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiJson, rememberPath } from "./api"
+import { setTrackUser } from "./track"
 
 export type CUser = { id: number; username: string; nickname: string; group_code: string }
 
@@ -22,6 +23,7 @@ export function useRequireAuth(): { state: AuthState; user: CUser | null } {
       try {
         const me = await apiJson<CUser>("/api/c/auth/me")
         setUser(me)
+        setTrackUser(me?.id ?? null)   // 埋点身份回填（PRD-P0 §4.1）：登录前后连成一个人
         setState("ok")
       } catch {
         rememberPath(window.location.pathname + window.location.search)
@@ -36,7 +38,9 @@ export function useRequireAuth(): { state: AuthState; user: CUser | null } {
 /** 尝试静默获取当前用户（外壳用）：未登录返回 null，不做跳转 */
 export async function fetchMe(): Promise<CUser | null> {
   try {
-    return await apiJson<CUser>("/api/c/auth/me")
+    const me = await apiJson<CUser>("/api/c/auth/me")
+    setTrackUser(me?.id ?? null)
+    return me
   } catch {
     return null
   }

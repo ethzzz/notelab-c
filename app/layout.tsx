@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Toaster } from "sonner"
 import { ConfirmHost } from "@/components/ui/confirm"
+import TrackPageView from "@/components/TrackPageView"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className="antialiased">
         {children}
+        <TrackPageView />
         <Toaster richColors position="top-center" />
         <ConfirmHost />
       </body>
