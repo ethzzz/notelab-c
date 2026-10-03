@@ -82,7 +82,9 @@ export default function Shell({ children }: { children: ReactNode }) {
   // 移动端 tab 高亮：/games 为游戏中心（/games 首页与 /games/<game> 同属一项），
   // 工具区 /utils/* 是独立一级，不参与 /games 的高亮。
   const isActive = (href: string) => {
-    if (href === "/games") return pathname === "/games" || pathname.startsWith("/games/")
+    // /play/* 是 2026-10-01 迁出来的全屏游戏台（容器=视口，不套消费级 Shell），
+    // 但用户仍是从「游戏中心」进的，所以底部 Tab 归到「游戏中心」这一项。
+    if (href === "/games") return pathname === "/games" || pathname.startsWith("/games/") || pathname.startsWith("/play/")
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
   }
