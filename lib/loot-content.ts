@@ -93,7 +93,8 @@ const DEFAULT_MAP_LIST: LootMap[] = [
 
 export const DEFAULT_BALANCE: LootBalance = {
   recycleRate: 0.6, extractRate: 0.55, backpackCap: 8, initialCoins: 500, rescueCoins: 200,
-  rescueCooldownSec: 86400, extractHoldMs: 5000, riskPerSlot: 1, evWarnRatio: 1.15, evRejectRatio: 3.0,
+  // ⚠️ 与设计目标区间 [1.5, 3.5] 自洽：warn = 区间上限，reject = 10× 门槛。三端（Java seed / B model.ts / 此处）必须同值。
+  rescueCooldownSec: 86400, extractHoldMs: 5000, riskPerSlot: 1, evWarnRatio: 3.5, evRejectRatio: 10.0,
 }
 
 export const DEFAULT_LOOT: LootContent = {
