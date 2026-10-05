@@ -13,7 +13,7 @@
 // ⚠️ LLM 依赖：无。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { loadLootContent, type LoadedLoot } from "@/lib/loot-content"
-import { RARITY_LABEL, type LootContent, type LootItem, type LootMap, type Rarity } from "@/lib/loot-engine"
+import { RARITY_LABEL, containerTier, type LootContent, type LootItem, type LootMap, type Rarity } from "@/lib/loot-engine"
 import { loadLootSave, saveLootSave, type LootSave } from "@/lib/loot-save"
 import { autoPageView, initTrack, track } from "@/lib/track"
 import {
@@ -22,13 +22,25 @@ import {
   type RaidState,
 } from "@/lib/loot-store"
 
-/** 稀有度配色（普通灰 → 传说金，与后台 Tag 色一致） */
+/**
+ * 稀有度配色：**白 → 蓝 → 紫 → 黄 → 红**，由低到高（与后台 Tag 色同序）。
+ * ⚠️ 第一个 token 必须是文字色 —— 图鉴分组标题用 `RARITY_CLS[r].split(" ")[0]` 取它。
+ */
 const RARITY_CLS: Record<Rarity, string> = {
-  common: "text-zinc-500 border-zinc-300 dark:border-zinc-600",
-  uncommon: "text-emerald-600 border-emerald-300 dark:border-emerald-700",
-  rare: "text-sky-600 border-sky-300 dark:border-sky-700",
-  epic: "text-violet-600 border-violet-300 dark:border-violet-700",
-  legendary: "text-amber-600 border-amber-300 dark:border-amber-700",
+  common: "text-zinc-600 border-zinc-300 dark:text-zinc-300 dark:border-zinc-600",
+  uncommon: "text-sky-600 border-sky-300 dark:text-sky-300 dark:border-sky-700",
+  rare: "text-violet-600 border-violet-300 dark:text-violet-300 dark:border-violet-700",
+  epic: "text-amber-600 border-amber-300 dark:text-amber-300 dark:border-amber-700",
+  legendary: "text-rose-600 border-rose-300 dark:text-rose-300 dark:border-rose-700",
+}
+
+/** 容器卡片的档位配色（外框 + 底色），同上面五档由低到高 */
+const TIER_CLS: Record<Rarity, string> = {
+  common: "border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-800/40",
+  uncommon: "border-sky-400 bg-sky-50/80 dark:border-sky-700 dark:bg-sky-950/40",
+  rare: "border-violet-400 bg-violet-50/80 dark:border-violet-700 dark:bg-violet-950/40",
+  epic: "border-amber-400 bg-amber-50/80 dark:border-amber-700 dark:bg-amber-950/40",
+  legendary: "border-rose-400 bg-rose-50/80 dark:border-rose-700 dark:bg-rose-950/40",
 }
 
 const fmtMs = (ms: number) => {
@@ -37,6 +49,13 @@ const fmtMs = (ms: number) => {
 }
 
 const CARD = "rounded-2xl border border-black/5 bg-white/70 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5"
+
+/**
+ * 不带边框色 / 底色的卡片骨架 —— 容器卡片要按档位染色，必须用它：
+ * Tailwind 里 `border-black/5` 与 `border-sky-400` 是**同一条 CSS 属性**，谁生效取决于
+ * 产物 CSS 里的先后顺序、而不是 class 写的前后顺序，混用会随机翻车。
+ */
+const CARD_BASE = "rounded-2xl border shadow-sm backdrop-blur-md"
 
 /** 结算原因 → 埋点用的稳定码（文案会改，码不改；P0 契约里 props 不该放中文长句） */
 const reasonCode = (r: string): string =>
@@ -286,11 +305,16 @@ export default function LootPage() {
                 const done = c.picks.length >= c.slots
                 const busy = searching?.key === c.key
                 const pct = busy && searching ? Math.min(100, ((now - searching.start) / searching.ms) * 100) : 0
+                // 档位来自容器定义（rarityWeights），不是局内实例 —— 局内实例没有权重
+                const def = content?.containers.find((x) => x.id === c.id)
+                const tier: Rarity = def ? containerTier(def) : "common"
                 return (
-                  <div key={c.key} className={`${CARD} flex flex-col gap-2 p-3`}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-zinc-800 dark:text-zinc-100">{c.emoji} {c.name}</span>
-                      <span className="text-[11px] text-zinc-400">{c.picks.length}/{c.slots}</span>
+                  <div key={c.key} title={`产出档位：${RARITY_LABEL[tier]}`}
+                    className={`${CARD_BASE} flex flex-col gap-2 p-3 ${TIER_CLS[tier]}`}>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{c.emoji} {c.name}</span>
+                      <span className={`shrink-0 text-[10px] ${RARITY_CLS[tier].split(" ")[0]}`}>{RARITY_LABEL[tier]}</span>
+                      <span className="shrink-0 text-[11px] text-zinc-400">{c.picks.length}/{c.slots}</span>
                     </div>
                     {/* 已摸出的槽 */}
                     <div className="flex flex-wrap gap-1">

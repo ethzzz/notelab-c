@@ -299,6 +299,34 @@ export function poolItemsOfRarity(table: LootTable | undefined, itemsById: Map<s
   return table.pool.map((p) => itemsById.get(p.itemId)).filter((x): x is LootItem => !!x && x.rarity === rarity)
 }
 
+// ---------------- 容器档位 ----------------
+
+/**
+ * 容器的稀有度档位 = 它产出稀有度的**期望档**（rarityWeights 加权平均后就近取整）。
+ *
+ * 为什么是"期望档"，而不是另外两种直觉口径：
+ *   - 「权重最高的那一档」几乎总落在 common（现有 6 个容器里 5 个 common 权重最大）→ 全场一个颜色，没有辨识度；
+ *   - 「能出的最高档」几乎都是 legendary（权重再小也是 > 0）→ 全部变红，同样没用；
+ *   - 期望档同时吃到"高档占比"和"分布重心"，实测与每槽 EV 的排序一致：
+ *     储物笼 0.43 → 白（EV 193）、木箱 0.68 → 蓝（272）、工具柜 0.85 → 蓝（435）、保险柜 1.55 → 紫（1060）。
+ *
+ * ⚠️ 只吃容器自身的 rarityWeights，**不**吃地图 tierBoost：档位是容器固有属性，
+ *    同一个容器在两张图里必须是同一个颜色，否则玩家记不住"紫色柜子值钱"。
+ * ⚠️ 三端口径要一致：C 端染色、B 端 Tag 都用这一个函数/同一套推导。
+ */
+export function containerTier(c: LootContainer): Rarity {
+  let sum = 0
+  let acc = 0
+  for (let i = 0; i < RARITY_ORDER.length; i++) {
+    const w = Math.max(0, c.rarityWeights?.[RARITY_ORDER[i]] ?? 0)
+    sum += w
+    acc += w * i
+  }
+  if (sum <= 0) return "common"
+  const idx = Math.min(RARITY_ORDER.length - 1, Math.max(0, Math.round(acc / sum)))
+  return RARITY_ORDER[idx]
+}
+
 /** 索引工具 */
 export function indexItems(items: LootItem[]): Map<string, LootItem> {
   return new Map(items.map((i) => [i.id, i]))
