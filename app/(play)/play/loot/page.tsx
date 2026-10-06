@@ -13,34 +13,59 @@
 // ⚠️ LLM 依赖：无。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { loadLootContent, type LoadedLoot } from "@/lib/loot-content"
-import { RARITY_LABEL, containerTier, type LootContent, type LootItem, type LootMap, type Rarity } from "@/lib/loot-engine"
+import {
+  colorMap, containerTier, labelMap, orderOf, type Cell, type LootContent, type LootItem, type LootMap, type Rarity,
+} from "@/lib/loot-engine"
+import { paletteOf } from "@/lib/loot-palette"
 import { loadLootSave, saveLootSave, type LootSave } from "@/lib/loot-save"
 import { autoPageView, initTrack, track } from "@/lib/track"
 import {
-  canRescue, checkEntry, commitResult, doRescue, finalize, remainingSlots, searchNext, sellStash,
+  bagDims, bagUsage, canRescue, checkEntry, commitResult, doRescue, finalize, remainingSlots, searchNext, sellStash,
   stashSorted, startRaid,
   type RaidState,
 } from "@/lib/loot-store"
 
+// ⚠️ 稀有度配色不再是这里的常量表 —— 档位数量、名字、颜色都由后台 `loot.rarities` 决定
+//    （见 loot-engine 的 RarityDef.color）。运行时统一走 `paletteOf(RCOLOR[r])`：
+//    C 端的类名必须是**字面量**才能被 Tailwind 扫到，所以只能在 loot-palette 里枚举好。
+
 /**
- * 稀有度配色：**白 → 蓝 → 紫 → 黄 → 红**，由低到高（与后台 Tag 色同序）。
- * ⚠️ 第一个 token 必须是文字色 —— 图鉴分组标题用 `RARITY_CLS[r].split(" ")[0]` 取它。
+ * 一组占位格里"最左上"的那格。
+ * 为什么需要它：一个 2×2 占 4 格，图标只在锚点格画一次，其余格只上色 ——
+ * 这样连成一片的同色格子就是"这件东西的形状"，比每格都塞一个图标好认得多。
  */
-const RARITY_CLS: Record<Rarity, string> = {
-  common: "text-zinc-600 border-zinc-300 dark:text-zinc-300 dark:border-zinc-600",
-  uncommon: "text-sky-600 border-sky-300 dark:text-sky-300 dark:border-sky-700",
-  rare: "text-violet-600 border-violet-300 dark:text-violet-300 dark:border-violet-700",
-  epic: "text-amber-600 border-amber-300 dark:text-amber-300 dark:border-amber-700",
-  legendary: "text-rose-600 border-rose-300 dark:text-rose-300 dark:border-rose-700",
+function anchorOf(cells: Cell[]): { x: number; y: number } {
+  let bx = Number.POSITIVE_INFINITY
+  let by = Number.POSITIVE_INFINITY
+  for (const [x, y] of cells) {
+    if (y < by || (y === by && x < bx)) { by = y; bx = x }
+  }
+  return { x: bx, y: by }
 }
 
-/** 容器卡片的档位配色（外框 + 底色），同上面五档由低到高 */
-const TIER_CLS: Record<Rarity, string> = {
-  common: "border-zinc-300 bg-zinc-50/80 dark:border-zinc-600 dark:bg-zinc-800/40",
-  uncommon: "border-sky-400 bg-sky-50/80 dark:border-sky-700 dark:bg-sky-950/40",
-  rare: "border-violet-400 bg-violet-50/80 dark:border-violet-700 dark:bg-violet-950/40",
-  epic: "border-amber-400 bg-amber-50/80 dark:border-amber-700 dark:bg-amber-950/40",
-  legendary: "border-rose-400 bg-rose-50/80 dark:border-rose-700 dark:bg-rose-950/40",
+/** 物品图标：有图用图，没图回落 emoji（后台两个维度可以只配一个） */
+function Glyph({ item }: { item: LootItem }) {
+  if (item.image) {
+    return <img src={item.image} alt={item.name} className="h-3.5 w-3.5 object-contain" draggable={false} />
+  }
+  return <>{item.emoji ?? "📦"}</>
+}
+
+/**
+ * 一张 cols×rows 的格子板（容器与背包共用）。
+ *
+ * ⚠️ 列数必须用 inline style 的 `gridTemplateColumns`，不能写 `grid-cols-${n}`：
+ *    列数是**运行时**才定的（容器网格开局随机掷、背包网格后台可配），
+ *    而 Tailwind v4 只生成源码里字面出现过的类 —— 拼出来的类名在产物 CSS 里根本不存在，
+ *    表现是"格子全挤成一列"这种很难联想到原因的 bug。
+ */
+function CellBoard({ cols, rows, children }: { cols: number; rows: number; children: React.ReactNode }) {
+  return (
+    <div className="inline-grid gap-px rounded-md bg-black/5 p-px dark:bg-white/10"
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+      {children}
+    </div>
+  )
 }
 
 const fmtMs = (ms: number) => {
@@ -79,6 +104,15 @@ export default function LootPage() {
   contentRef.current = content
   const committedRef = useRef<number | null>(null)
   const raidStartRef = useRef<number>(0)
+
+  // 稀有度：档位数量 / 名字 / 颜色全部来自后台配置，这里不假设有五档
+  const order = useMemo(() => orderOf(content ?? undefined), [content])
+  const RLABEL = useMemo(() => (content ? labelMap(content) : {} as Record<string, string>), [content])
+  const RCOLOR = useMemo(() => (content ? colorMap(content) : {} as Record<string, string>), [content])
+  /** 稀有度 → 外框 + 底色类名（物品格子、容器卡片都用它） */
+  const rCls = useCallback((r: string) => paletteOf(RCOLOR[r]).cls, [RCOLOR])
+  /** 稀有度 → 文字色类名 */
+  const rText = useCallback((r: string) => paletteOf(RCOLOR[r]).text, [RCOLOR])
 
   useEffect(() => {
     initTrack()
@@ -152,7 +186,7 @@ export default function LootPage() {
         haul: raid.result.gross,
         items: raid.result.backpack.length,
         risk: raid.risk,
-        containers: raid.containers.filter((c) => c.picks.length > 0).length,
+        containers: raid.containers.filter((c) => c.revealed.some(Boolean)).length,
         duration_ms: raidStartRef.current ? Date.now() - raidStartRef.current : 0,
       })
     }
@@ -160,6 +194,16 @@ export default function LootPage() {
 
   // ---------------- 进场 / 撤离 / 放弃 ----------------
   const balance = content?.balance
+
+  /** 背包网格尺寸（后台配的 cols×rows） */
+  const bag = useMemo(() => (balance ? bagDims(balance) : { cols: 5, rows: 3 }), [balance])
+  /** 背包占用：按**格**算，不是按件算 —— 一件 2×2 就是 4 格 */
+  const bagUse = useMemo(
+    () => (raid && balance ? bagUsage(raid.backpack, balance) : { used: 0, total: bag.cols * bag.rows }),
+    [raid, balance, bag],
+  )
+  const bagUsed = bagUse.used
+  const bagTotal = bagUse.total
 
   const enter = (map: LootMap) => {
     if (!content || !save) return
@@ -290,7 +334,7 @@ export default function LootPage() {
               </span>
             </span>
             <span className="tabular-nums text-zinc-600 dark:text-zinc-300">
-              🎒 {raid.backpack.length}/{balance.backpackCap}
+              🎒 {bagUsed}/{bagTotal} 格
             </span>
             <span className="text-[11px] text-zinc-400">摸过 {progress.done}/{progress.total} 格</span>
             <button onClick={abandon} className="ml-auto cursor-pointer rounded-lg px-2.5 py-1 text-xs text-zinc-500 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/10">
@@ -299,40 +343,51 @@ export default function LootPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1fr_18rem]">
-            {/* 容器网格 */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {/* 容器网格：几×几由开局随机掷出，同 seed 可复现 */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {raid.containers.map((c) => {
-                const done = c.picks.length >= c.slots
+                const total = c.cols * c.rows
+                const opened = c.revealed.filter(Boolean).length
+                const done = opened >= total
                 const busy = searching?.key === c.key
                 const pct = busy && searching ? Math.min(100, ((now - searching.start) / searching.ms) * 100) : 0
                 // 档位来自容器定义（rarityWeights），不是局内实例 —— 局内实例没有权重
                 const def = content?.containers.find((x) => x.id === c.id)
-                const tier: Rarity = def ? containerTier(def) : "common"
+                const tier: Rarity = def ? containerTier(def, order) : order[0]
+                const pal = paletteOf(RCOLOR[tier])
                 return (
-                  <div key={c.key} title={`产出档位：${RARITY_LABEL[tier]}`}
-                    className={`${CARD_BASE} flex flex-col gap-2 p-3 ${TIER_CLS[tier]}`}>
+                  <div key={c.key} title={`产出档位：${RLABEL[tier] ?? tier}｜网格 ${c.cols}×${c.rows}`}
+                    className={`${CARD_BASE} flex flex-col gap-2 p-3 ${pal.cls}`}>
                     <div className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate font-medium text-zinc-800 dark:text-zinc-100">{c.emoji} {c.name}</span>
-                      <span className={`shrink-0 text-[10px] ${RARITY_CLS[tier].split(" ")[0]}`}>{RARITY_LABEL[tier]}</span>
-                      <span className="shrink-0 text-[11px] text-zinc-400">{c.picks.length}/{c.slots}</span>
+                      <span className={`shrink-0 text-[10px] ${pal.text}`}>{RLABEL[tier] ?? tier}</span>
+                      <span className="shrink-0 text-[11px] text-zinc-400">{opened}/{total}</span>
                     </div>
-                    {/* 已摸出的槽 */}
-                    <div className="flex flex-wrap gap-1">
-                      {Array.from({ length: c.slots }, (_, i) => {
-                        const p = c.picks[i]
-                        if (i >= c.picks.length) {
-                          return <span key={i} className="grid h-7 w-7 place-items-center rounded-md border border-dashed border-zinc-300 text-[10px] text-zinc-400 dark:border-zinc-600">?</span>
+                    <CellBoard cols={c.cols} rows={c.rows}>
+                      {Array.from({ length: total }, (_, i) => {
+                        const x = i % c.cols
+                        const y = Math.floor(i / c.cols)
+                        if (!c.revealed[i]) {
+                          return <span key={i} className="flex h-6 w-6 items-center justify-center rounded-[3px] border border-dashed border-zinc-300 bg-white/60 text-[10px] text-zinc-400 dark:border-zinc-600 dark:bg-white/5">?</span>
                         }
-                        return p ? (
-                          <span key={i} title={`${p.name} · ${RARITY_LABEL[p.rarity]}`}
-                            className={`grid h-7 w-7 place-items-center rounded-md border bg-white/70 text-base dark:bg-white/5 ${RARITY_CLS[p.rarity]}`}>
-                            {p.emoji ?? "📦"}
+                        const k = c.layout.findIndex((p) => p.cells.some(([cx, cy]) => cx === x && cy === y))
+                        if (k < 0) {
+                          return <span key={i} className="flex h-6 w-6 items-center justify-center rounded-[3px] border border-dashed border-zinc-300 text-[10px] text-zinc-400 dark:border-zinc-600">空</span>
+                        }
+                        const p = c.layout[k]
+                        const item = content.items.find((it) => it.id === p.itemId)
+                        const got = !!c.taken[k]
+                        const a = anchorOf(p.cells)
+                        const ipal = item ? paletteOf(RCOLOR[item.rarity]) : pal
+                        return (
+                          <span key={i}
+                            title={item ? `${item.name}｜占 ${p.cells.length} 格${got ? "（已取走）" : ""}` : undefined}
+                            className={`flex h-6 w-6 items-center justify-center rounded-[3px] border text-[11px] ${ipal.cls} ${got ? "opacity-40" : ""}`}>
+                            {item && a.x === x && a.y === y ? <Glyph item={item} /> : null}
                           </span>
-                        ) : (
-                          <span key={i} className="grid h-7 w-7 place-items-center rounded-md border border-dashed border-zinc-300 text-[10px] text-zinc-400 dark:border-zinc-600">空</span>
                         )
                       })}
-                    </div>
+                    </CellBoard>
                     {busy ? (
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                         <span className="block h-full bg-amber-500" style={{ width: `${pct}%` }} />
@@ -353,22 +408,31 @@ export default function LootPage() {
             {/* 背包 + 日志 */}
             <div className="flex flex-col gap-3">
               <div className={`${CARD} p-3`}>
-                <div className="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                  背包（{raid.backpack.length}/{balance.backpackCap}）
+                <div className="mb-2 flex items-center justify-between text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                  <span>背包</span>
+                  <span className="font-normal text-zinc-400">
+                    {bagUsed}/{bagTotal} 格 · {raid.backpack.length} 件
+                  </span>
                 </div>
-                {raid.backpack.length === 0
-                  ? <div className="py-3 text-center text-[11px] text-zinc-400">还是空的</div>
-                  : (
-                    <ul className="flex flex-col gap-1">
-                      {raid.backpack.map((b, i) => (
-                        <li key={i} className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs ${RARITY_CLS[b.item.rarity]}`}>
-                          <span className="text-base">{b.item.emoji ?? "📦"}</span>
-                          <span className="flex-1 truncate text-zinc-700 dark:text-zinc-200">{b.item.name}</span>
-                          <span className="tabular-nums opacity-80">{b.value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                {/* 背包也是格子板：形状塞不下的东西会被丢下，这里能直接看出还剩多少空间 */}
+                <CellBoard cols={bag.cols} rows={bag.rows}>
+                  {Array.from({ length: bag.cols * bag.rows }, (_, i) => {
+                    const x = i % bag.cols
+                    const y = Math.floor(i / bag.cols)
+                    const b = raid.backpack.find((e) => e.cells.some(([cx, cy]) => cx === x && cy === y))
+                    if (!b) {
+                      return <span key={i} className="flex h-6 w-6 items-center justify-center rounded-[3px] border border-dashed border-zinc-300 bg-white/40 dark:border-zinc-700 dark:bg-white/5" />
+                    }
+                    const a = anchorOf(b.cells)
+                    const ipal = paletteOf(RCOLOR[b.item.rarity])
+                    return (
+                      <span key={i} title={`${b.item.name}｜${b.value}｜占 ${b.cells.length} 格`}
+                        className={`flex h-6 w-6 items-center justify-center rounded-[3px] border text-[11px] ${ipal.cls}`}>
+                        {a.x === x && a.y === y ? <Glyph item={b.item} /> : null}
+                      </span>
+                    )
+                  })}
+                </CellBoard>
                 <div className="mt-2 border-t border-black/5 pt-2 text-[11px] text-zinc-500 dark:border-white/10">
                   当前价值 <b className="text-amber-600 dark:text-amber-400">
                     {raid.backpack.reduce((s, b) => s + b.value, 0)}
@@ -426,8 +490,9 @@ export default function LootPage() {
           {raid.result.backpack.length > 0 && (
             <div className="flex flex-wrap justify-center gap-1.5">
               {raid.result.backpack.map((b, i) => (
-                <span key={i} className={`inline-flex items-center gap-1 rounded-lg border bg-white/60 px-2 py-1 text-[11px] dark:bg-white/5 ${RARITY_CLS[b.item.rarity]}`}>
-                  <span className="text-base">{b.item.emoji ?? "📦"}</span>
+                <span key={i} title={`${b.item.name}｜占 ${b.cells.length} 格`}
+                  className={`inline-flex items-center gap-1 rounded-lg border bg-white/60 px-2 py-1 text-[11px] dark:bg-white/5 ${rCls(b.item.rarity)}`}>
+                  <span className="text-sm"><Glyph item={b.item} /></span>
                   <span className="text-zinc-700 dark:text-zinc-200">{b.item.name}</span>
                   <span className="tabular-nums opacity-70">{b.value}</span>
                 </span>
@@ -551,8 +616,8 @@ export default function LootPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {stash.map(({ item, qty, sell }) => (
                       <span key={item.id} title={`${item.name}｜回收 ${sell}｜面值 ${item.baseValue}`}
-                        className={`inline-flex items-center gap-1 rounded-lg border bg-white/60 px-2 py-1 text-[11px] dark:bg-white/5 ${RARITY_CLS[item.rarity]}`}>
-                        <span className="text-base">{item.emoji ?? "📦"}</span>
+                        className={`inline-flex items-center gap-1 rounded-lg border bg-white/60 px-2 py-1 text-[11px] dark:bg-white/5 ${rCls(item.rarity)}`}>
+                        <span className="text-sm"><Glyph item={item} /></span>
                         <span className="text-zinc-700 dark:text-zinc-200">{item.name}</span>
                         {qty > 1 && <span className="tabular-nums font-semibold">×{qty}</span>}
                         <span className="tabular-nums opacity-70">{sell}</span>
@@ -567,17 +632,18 @@ export default function LootPage() {
           {tab === "codex" && (
             <section className={`${CARD} p-5`}>
               <h2 className="mb-3 text-sm font-semibold text-zinc-700 dark:text-zinc-200">物品图鉴（{content.items.length} 件）</h2>
-              {(["legendary", "epic", "rare", "uncommon", "common"] as Rarity[]).map((r) => {
+              {/* 高档在前；档位来自后台配置，不写死五档 */}
+              {[...order].reverse().map((r) => {
                 const arr = content.items.filter((i) => i.rarity === r)
                 if (!arr.length) return null
                 return (
                   <div key={r} className="mb-3">
-                    <div className={`mb-1.5 text-xs font-medium ${RARITY_CLS[r].split(" ")[0]}`}>{RARITY_LABEL[r]}（{arr.length}）</div>
+                    <div className={`mb-1.5 text-xs font-medium ${rText(r)}`}>{RLABEL[r] ?? r}（{arr.length}）</div>
                     <div className="flex flex-wrap gap-1.5">
                       {arr.map((it: LootItem) => (
-                        <span key={it.id} title={`${it.name}｜面值 ${it.baseValue}`}
-                          className={`inline-flex items-center gap-1 rounded-lg border bg-white/60 px-2 py-1 text-[11px] dark:bg-white/5 ${RARITY_CLS[r]}`}>
-                          <span className="text-base">{it.emoji ?? "📦"}</span>
+                        <span key={it.id} title={`${it.name}｜面值 ${it.baseValue}｜占 ${it.shape && it.shape !== "1x1" ? it.shape : 1} 格`}
+                          className={`inline-flex items-center gap-1 rounded-lg border bg-white/60 px-2 py-1 text-[11px] dark:bg-white/5 ${rCls(r)}`}>
+                          <span className="text-sm"><Glyph item={it} /></span>
                           <span className="text-zinc-700 dark:text-zinc-200">{it.name}</span>
                           <span className="tabular-nums opacity-70">{it.baseValue}</span>
                         </span>
