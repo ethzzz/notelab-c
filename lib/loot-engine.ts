@@ -118,7 +118,8 @@ export function newGrid(cols: number, rows: number): boolean[] {
  * 玩家看到的形状跟后台配的一致，不会出现"我配了个竖条，进包变横条"的困惑。
  */
 export function findPlacement(
-  shapeId: string, cols: number, rows: number, grid: boolean[],
+  /** 形状 id；空/undefined 一律按 1×1 处理（物品未配形状时的兜底，别让调用方各自 ?? "1x1"） */
+  shapeId: string | null | undefined, cols: number, rows: number, grid: boolean[],
 ): { x: number; y: number; rot: number; cells: Cell[] } | null {
   const base = shapeOf(shapeId).cells
   for (let rot = 0; rot < 4; rot++) {
