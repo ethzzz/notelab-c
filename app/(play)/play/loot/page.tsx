@@ -22,6 +22,7 @@ import {
 import { paletteOf } from "@/lib/loot-palette"
 import { loadLootSave, saveLootSave, type LootSave } from "@/lib/loot-save"
 import { autoPageView, initTrack, track } from "@/lib/track"
+import { useBackdrop } from "@/lib/use-backdrop"
 import {
   bagDims, bagUsage, canRescue, checkEntry, commitResult, doRescue, finalize, remainingSlots, searchNext, sellStash,
   stashSorted, startRaid,
@@ -33,10 +34,14 @@ import {
 //    C 端的类名必须是**字面量**才能被 Tailwind 扫到，所以只能在 loot-palette 里枚举好。
 
 // ---------------- 暗色战术风 token ----------------
-// ⚠️ 用 100dvh 而不是 min-h-full：游戏页整屏是暗底，必须铺满视口；
-//    而 min-h-full 依赖父链上有确定高度（PlayShell 的内层 div 虽写了 h-full，
-//    但中间经过 route group / RequireAuth 的 Fragment 之后高度传递并不可靠），
-//    实测会退化成"高度=内容高度"，页面下方露出一条浅色。
+// ⚠️ 用 100dvh 而不是 min-h-full：游戏页整屏是暗底，必须铺满视口；min-h-full 依赖父链上有
+//    确定高度，中间经过 route group / RequireAuth 的 Fragment 后不可靠。
+//    实测（DOM）：min-h-[100dvh] 下 root 为 1272×900、bottom=900 = 视口高，下缘像素亮度 19（正常）。
+// 页面底色（暗色战术风的近黑底）。单独抽出来是因为 useBackdrop 也要用同一个值刷 <html>：
+// 根滚动条槽（scrollbar-gutter:stable 恒留 8px）显示的是画布，不刷 <html> 就会在右侧露一条白缝。
+// ⚠️ 类名必须是字面量 `bg-[#0b0e13]`：Tailwind v4 靠扫源码里的候选串，写成 `bg-[${PAGE_BG}]`
+//    会在产物 CSS 里找不到这个类，底色直接丢（踩过一次）。
+const PAGE_BG = "#0b0e13"
 const PAGE = "min-h-[100dvh] w-full bg-[#0b0e13] text-zinc-200 selection:bg-amber-500/30"
 const INNER = "mx-auto w-full max-w-5xl px-4 pb-14 pt-16"
 const CARD = "rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md"
@@ -166,6 +171,9 @@ export default function LootPage() {
   const [now, setNow] = useState(() => Date.now())
   const [tab, setTab] = useState<"maps" | "stash" | "codex">("maps")
   const [flash, setFlash] = useState<{ text: string; kind: "good" | "bad" } | null>(null)
+
+  // 把近黑底刷到 <html>：盖住 scrollbar-gutter 恒留的 8px 滚动条槽（否则右侧露白缝）
+  useBackdrop(PAGE_BG)
 
   const content: LootContent | null = data?.content ?? null
   const contentRef = useRef<LootContent | null>(null)
@@ -345,9 +353,11 @@ export default function LootPage() {
   }
 
   // ---------------- 加载门 ----------------
+  // ⚠️ 加载态不要再叠 min-h-full：PAGE 里已有 min-h-[100dvh]，两个 min-height 谁赢取决于
+  //    产物 CSS 顺序（不可预测）。100dvh 已知能铺满，就只用它。
   if (!data || !content || !balance || !save) {
     return (
-      <div className={`${PAGE} grid min-h-full place-items-center`}>
+      <div className={`${PAGE} grid place-items-center`}>
         <div className="flex flex-col items-center gap-3 text-zinc-500">
           <span className="inline-block h-8 w-8 animate-spin rounded-full border-[3px] border-amber-500 border-t-transparent" />
           <span className="text-sm font-medium">正在载入摸金行动…</span>
