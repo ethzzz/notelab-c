@@ -33,7 +33,11 @@ import {
 //    C 端的类名必须是**字面量**才能被 Tailwind 扫到，所以只能在 loot-palette 里枚举好。
 
 // ---------------- 暗色战术风 token ----------------
-const PAGE = "min-h-full w-full bg-[#0b0e13] text-zinc-200 selection:bg-amber-500/30"
+// ⚠️ 用 100dvh 而不是 min-h-full：游戏页整屏是暗底，必须铺满视口；
+//    而 min-h-full 依赖父链上有确定高度（PlayShell 的内层 div 虽写了 h-full，
+//    但中间经过 route group / RequireAuth 的 Fragment 之后高度传递并不可靠），
+//    实测会退化成"高度=内容高度"，页面下方露出一条浅色。
+const PAGE = "min-h-[100dvh] w-full bg-[#0b0e13] text-zinc-200 selection:bg-amber-500/30"
 const INNER = "mx-auto w-full max-w-5xl px-4 pb-14 pt-16"
 const CARD = "rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md"
 const SUBTLE = "rounded-xl border border-white/[0.07] bg-white/[0.03]"
@@ -655,7 +659,7 @@ export default function LootPage() {
                   const chk = checkEntry(save, m, null)
                   const theme = MAP_THEME[mi % MAP_THEME.length]
                   return (
-                    <div key={m.id} className={`${CARD} relative flex flex-col overflow-hidden p-5 transition ${
+                    <div key={m.id} className={`${CARD} relative flex h-full flex-col overflow-hidden p-5 transition ${
                       chk.ok ? "hover:border-white/20 hover:bg-white/[0.06]" : "opacity-85"}`}>
                       <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${theme.bar}`} />
 
@@ -694,16 +698,19 @@ export default function LootPage() {
                         })}
                       </div>
 
-                      {!chk.ok && (
-                        <ul className="mt-3 flex flex-col gap-0.5 text-[11px] text-rose-300">
-                          {chk.reasons.map((r) => <li key={r}>· {r}</li>)}
-                        </ul>
-                      )}
-
-                      <button onClick={() => enter(m)} disabled={!chk.ok}
-                        className={`mt-4 w-full ${BTN_AMBER} py-2.5`}>
-                        {chk.ok ? `带 💰${m.entry.coins} 进图` : "门槛未满足"}
-                      </button>
+                      {/* mt-auto：卡片被拉伸到同行等高后，把"提示 + CTA"整体顶到底部，
+                          两张卡的按钮才会横向对齐（否则内容少的那张按钮位置偏上） */}
+                      <div className="mt-auto pt-4">
+                        {!chk.ok && (
+                          <ul className="mb-3 flex flex-col gap-0.5 text-[11px] text-rose-300">
+                            {chk.reasons.map((r) => <li key={r}>· {r}</li>)}
+                          </ul>
+                        )}
+                        <button onClick={() => enter(m)} disabled={!chk.ok}
+                          className={`w-full ${BTN_AMBER} py-2.5`}>
+                          {chk.ok ? `带 💰${m.entry.coins} 进图` : "门槛未满足"}
+                        </button>
+                      </div>
                     </div>
                   )
                 })}
