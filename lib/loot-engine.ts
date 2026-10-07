@@ -187,6 +187,8 @@ export interface LootContainer {
   pity?: LootPity | null
   tableId: string
   emoji?: string
+  /** 容器图标路径（相对 C 端 public 根，如 `/loot/ct-crate.png`）；有图优先，没图回落 emoji */
+  image?: string
 }
 
 export interface LootPoolEntry { itemId: string; weight: number }

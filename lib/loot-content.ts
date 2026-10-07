@@ -21,30 +21,30 @@ const W = (c: number, u: number, r: number, e: number, l: number) => ({ common: 
  *    也顺带让玩家明白规则是"一般来说"，不是死的。
  */
 const DEFAULT_ITEM_LIST: LootItem[] = [
-  { id: "it-001", name: "旧手表", rarity: "common", baseValue: 60, stack: 1, emoji: "⌚", shape: "1x1", tags: ["junk"] },
-  { id: "it-002", name: "生锈扳手", rarity: "common", baseValue: 110, stack: 1, emoji: "🔧", shape: "1x2", tags: ["junk"] },
-  { id: "it-003", name: "罐头食品", rarity: "common", baseValue: 45, stack: 3, emoji: "🥫", shape: "1x1", tags: ["supply"] },
-  { id: "it-004", name: "铜线卷", rarity: "common", baseValue: 140, stack: 2, emoji: "🔌", shape: "1x2", tags: ["mat"] },
-  { id: "it-005", name: "军用水壶", rarity: "common", baseValue: 50, stack: 1, emoji: "🍶", shape: "1x1", tags: ["supply"] },
-  { id: "it-006", name: "破旧地图", rarity: "common", baseValue: 85, stack: 1, emoji: "🗺️", shape: "1x1", tags: ["info"] },
-  { id: "it-007", name: "打火机", rarity: "common", baseValue: 65, stack: 1, emoji: "🔥", shape: "1x1", tags: ["supply"] },
-  { id: "it-008", name: "零件盒", rarity: "common", baseValue: 380, stack: 2, emoji: "🧰", shape: "2x2", tags: ["mat"] },
-  { id: "it-009", name: "急救包", rarity: "uncommon", baseValue: 440, stack: 2, emoji: "🩹", shape: "1x2", tags: ["med"] },
-  { id: "it-010", name: "便携电台", rarity: "uncommon", baseValue: 520, stack: 1, emoji: "📻", shape: "1x2", tags: ["tech"] },
-  { id: "it-011", name: "军用望远镜", rarity: "uncommon", baseValue: 900, stack: 1, emoji: "🔭", shape: "1x3", tags: ["optics"] },
-  { id: "it-012", name: "精钢匕首", rarity: "uncommon", baseValue: 360, stack: 1, emoji: "🗡️", shape: "1x2", tags: ["weapon"] },
-  { id: "it-013", name: "防毒面具", rarity: "uncommon", baseValue: 1360, stack: 1, emoji: "😷", shape: "2x2", tags: ["gear"] },
-  { id: "it-014", name: "加密硬盘", rarity: "uncommon", baseValue: 380, stack: 1, emoji: "💽", shape: "1x1", tags: ["tech", "info"] },
-  { id: "it-015", name: "夜视仪", rarity: "rare", baseValue: 1700, stack: 1, emoji: "🕶️", shape: "1x2", tags: ["optics", "gear"] },
-  { id: "it-016", name: "金条", rarity: "rare", baseValue: 2000, stack: 5, emoji: "🧱", shape: "1x2", tags: ["treasure"] },
-  { id: "it-017", name: "稀有电路板", rarity: "rare", baseValue: 1240, stack: 3, emoji: "🔲", shape: "1x2", tags: ["tech", "mat"] },
-  { id: "it-018", name: "古董怀表", rarity: "rare", baseValue: 700, stack: 1, emoji: "🕰️", shape: "1x1", tags: ["treasure"] },
-  { id: "it-019", name: "军用手枪", rarity: "rare", baseValue: 3450, stack: 1, emoji: "🔫", shape: "1x3", tags: ["weapon"] },
-  { id: "it-020", name: "黄金雕像", rarity: "epic", baseValue: 8800, stack: 1, emoji: "🗿", shape: "2x2", tags: ["treasure"] },
-  { id: "it-021", name: "实验样本", rarity: "epic", baseValue: 3600, stack: 1, emoji: "🧪", shape: "1x2", tags: ["tech"] },
-  { id: "it-022", name: "稀有芯片组", rarity: "epic", baseValue: 2700, stack: 2, emoji: "💠", shape: "1x1", tags: ["tech"] },
-  { id: "it-023", name: "黑箱核心", rarity: "legendary", baseValue: 24000, stack: 1, emoji: "⬛", shape: "2x2", tags: ["artifact"] },
-  { id: "it-024", name: "王冠宝石", rarity: "legendary", baseValue: 8500, stack: 1, emoji: "👑", shape: "1x1", tags: ["treasure"] },
+  { id: "it-001", name: "旧手表", rarity: "common", baseValue: 60, stack: 1, emoji: "⌚", image: "/loot/it-001.png", shape: "1x1", tags: ["junk"] },
+  { id: "it-002", name: "生锈扳手", rarity: "common", baseValue: 110, stack: 1, emoji: "🔧", image: "/loot/it-002.png", shape: "1x2", tags: ["junk"] },
+  { id: "it-003", name: "罐头食品", rarity: "common", baseValue: 45, stack: 3, emoji: "🥫", image: "/loot/it-003.png", shape: "1x1", tags: ["supply"] },
+  { id: "it-004", name: "铜线卷", rarity: "common", baseValue: 140, stack: 2, emoji: "🔌", image: "/loot/it-004.png", shape: "1x2", tags: ["mat"] },
+  { id: "it-005", name: "军用水壶", rarity: "common", baseValue: 50, stack: 1, emoji: "🍶", image: "/loot/it-005.png", shape: "1x1", tags: ["supply"] },
+  { id: "it-006", name: "破旧地图", rarity: "common", baseValue: 85, stack: 1, emoji: "🗺️", image: "/loot/it-006.png", shape: "1x1", tags: ["info"] },
+  { id: "it-007", name: "打火机", rarity: "common", baseValue: 65, stack: 1, emoji: "🔥", image: "/loot/it-007.png", shape: "1x1", tags: ["supply"] },
+  { id: "it-008", name: "零件盒", rarity: "common", baseValue: 380, stack: 2, emoji: "🧰", image: "/loot/it-008.png", shape: "2x2", tags: ["mat"] },
+  { id: "it-009", name: "急救包", rarity: "uncommon", baseValue: 440, stack: 2, emoji: "🩹", image: "/loot/it-009.png", shape: "1x2", tags: ["med"] },
+  { id: "it-010", name: "便携电台", rarity: "uncommon", baseValue: 520, stack: 1, emoji: "📻", image: "/loot/it-010.png", shape: "1x2", tags: ["tech"] },
+  { id: "it-011", name: "军用望远镜", rarity: "uncommon", baseValue: 900, stack: 1, emoji: "🔭", image: "/loot/it-011.png", shape: "1x3", tags: ["optics"] },
+  { id: "it-012", name: "精钢匕首", rarity: "uncommon", baseValue: 360, stack: 1, emoji: "🗡️", image: "/loot/it-012.png", shape: "1x2", tags: ["weapon"] },
+  { id: "it-013", name: "防毒面具", rarity: "uncommon", baseValue: 1360, stack: 1, emoji: "😷", image: "/loot/it-013.png", shape: "2x2", tags: ["gear"] },
+  { id: "it-014", name: "加密硬盘", rarity: "uncommon", baseValue: 380, stack: 1, emoji: "💽", image: "/loot/it-014.png", shape: "1x1", tags: ["tech", "info"] },
+  { id: "it-015", name: "夜视仪", rarity: "rare", baseValue: 1700, stack: 1, emoji: "🕶️", image: "/loot/it-015.png", shape: "1x2", tags: ["optics", "gear"] },
+  { id: "it-016", name: "金条", rarity: "rare", baseValue: 2000, stack: 5, emoji: "🧱", image: "/loot/it-016.png", shape: "1x2", tags: ["treasure"] },
+  { id: "it-017", name: "稀有电路板", rarity: "rare", baseValue: 1240, stack: 3, emoji: "🔲", image: "/loot/it-017.png", shape: "1x2", tags: ["tech", "mat"] },
+  { id: "it-018", name: "古董怀表", rarity: "rare", baseValue: 700, stack: 1, emoji: "🕰️", image: "/loot/it-018.png", shape: "1x1", tags: ["treasure"] },
+  { id: "it-019", name: "军用手枪", rarity: "rare", baseValue: 3450, stack: 1, emoji: "🔫", image: "/loot/it-019.png", shape: "1x3", tags: ["weapon"] },
+  { id: "it-020", name: "黄金雕像", rarity: "epic", baseValue: 8800, stack: 1, emoji: "🗿", image: "/loot/it-020.png", shape: "2x2", tags: ["treasure"] },
+  { id: "it-021", name: "实验样本", rarity: "epic", baseValue: 3600, stack: 1, emoji: "🧪", image: "/loot/it-021.png", shape: "1x2", tags: ["tech"] },
+  { id: "it-022", name: "稀有芯片组", rarity: "epic", baseValue: 2700, stack: 2, emoji: "💠", image: "/loot/it-022.png", shape: "1x1", tags: ["tech"] },
+  { id: "it-023", name: "黑箱核心", rarity: "legendary", baseValue: 24000, stack: 1, emoji: "⬛", image: "/loot/it-023.png", shape: "2x2", tags: ["artifact"] },
+  { id: "it-024", name: "王冠宝石", rarity: "legendary", baseValue: 8500, stack: 1, emoji: "👑", image: "/loot/it-024.png", shape: "1x1", tags: ["treasure"] },
 ]
 
 /**
@@ -52,12 +52,12 @@ const DEFAULT_ITEM_LIST: LootItem[] = [
  * fillRate < 1 才会出现"这格是空的"，别设成 1（那样永远是满的，摸空这条线就没有了）。
  */
 const DEFAULT_CONTAINER_LIST: LootContainer[] = [
-  { id: "ct-crate", name: "木箱", colsMin: 2, colsMax: 3, rowsMin: 2, rowsMax: 2, fillRate: 0.8, slotMs: 600, rarityWeights: W(55, 28, 12, 4.5, 0.5), riskCost: 1, pity: null, tableId: "lt-crate", emoji: "📦" },
-  { id: "ct-tool", name: "工具柜", colsMin: 3, colsMax: 3, rowsMin: 2, rowsMax: 2, fillRate: 0.75, slotMs: 1000, rarityWeights: W(45, 33, 15, 6, 1), riskCost: 2, pity: null, tableId: "lt-tool", emoji: "🔧" },
-  { id: "ct-ammo", name: "弹药箱", colsMin: 2, colsMax: 2, rowsMin: 2, rowsMax: 3, fillRate: 0.8, slotMs: 800, rarityWeights: W(50, 30, 14, 5, 1), riskCost: 2, pity: null, tableId: "lt-ammo", emoji: "🧨" },
-  { id: "ct-med", name: "医疗柜", colsMin: 2, colsMax: 3, rowsMin: 2, rowsMax: 2, fillRate: 0.75, slotMs: 1200, rarityWeights: W(48, 32, 14, 5, 1), riskCost: 2, pity: null, tableId: "lt-med", emoji: "🩺" },
-  { id: "ct-safe", name: "保险柜", colsMin: 2, colsMax: 2, rowsMin: 2, rowsMax: 2, fillRate: 0.9, slotMs: 3000, rarityWeights: W(20, 30, 30, 15, 5), riskCost: 3, pity: { afterRuns: 12, minRarity: "epic" }, tableId: "lt-safe", emoji: "🔐" },
-  { id: "ct-cage", name: "储物笼", colsMin: 3, colsMax: 4, rowsMin: 2, rowsMax: 3, fillRate: 0.7, slotMs: 500, rarityWeights: W(70, 20, 8, 1.5, 0.5), riskCost: 1, pity: null, tableId: "lt-cage", emoji: "🗄️" },
+  { id: "ct-crate", name: "木箱", colsMin: 2, colsMax: 3, rowsMin: 2, rowsMax: 2, fillRate: 0.8, slotMs: 600, rarityWeights: W(55, 28, 12, 4.5, 0.5), riskCost: 1, pity: null, tableId: "lt-crate", emoji: "📦", image: "/loot/ct-crate.png" },
+  { id: "ct-tool", name: "工具柜", colsMin: 3, colsMax: 3, rowsMin: 2, rowsMax: 2, fillRate: 0.75, slotMs: 1000, rarityWeights: W(45, 33, 15, 6, 1), riskCost: 2, pity: null, tableId: "lt-tool", emoji: "🔧", image: "/loot/ct-tool.png" },
+  { id: "ct-ammo", name: "弹药箱", colsMin: 2, colsMax: 2, rowsMin: 2, rowsMax: 3, fillRate: 0.8, slotMs: 800, rarityWeights: W(50, 30, 14, 5, 1), riskCost: 2, pity: null, tableId: "lt-ammo", emoji: "🧨", image: "/loot/ct-ammo.png" },
+  { id: "ct-med", name: "医疗柜", colsMin: 2, colsMax: 3, rowsMin: 2, rowsMax: 2, fillRate: 0.75, slotMs: 1200, rarityWeights: W(48, 32, 14, 5, 1), riskCost: 2, pity: null, tableId: "lt-med", emoji: "🩺", image: "/loot/ct-med.png" },
+  { id: "ct-safe", name: "保险柜", colsMin: 2, colsMax: 2, rowsMin: 2, rowsMax: 2, fillRate: 0.9, slotMs: 3000, rarityWeights: W(20, 30, 30, 15, 5), riskCost: 3, pity: { afterRuns: 12, minRarity: "epic" }, tableId: "lt-safe", emoji: "🔐", image: "/loot/ct-safe.png" },
+  { id: "ct-cage", name: "储物笼", colsMin: 3, colsMax: 4, rowsMin: 2, rowsMax: 3, fillRate: 0.7, slotMs: 500, rarityWeights: W(70, 20, 8, 1.5, 0.5), riskCost: 1, pity: null, tableId: "lt-cage", emoji: "🗄️", image: "/loot/ct-cage.png" },
 ]
 
 const DEFAULT_TABLE_LIST: LootTable[] = [
@@ -206,6 +206,7 @@ function cleanContainers(raw: any, order: string[]): LootContainer[] {
       pity: c.pity && typeof c.pity === "object" && typeof c.pity.minRarity === "string"
         ? { afterRuns: num(c.pity.afterRuns, 12), minRarity: c.pity.minRarity } : null,
       tableId: c.tableId, emoji: typeof c.emoji === "string" ? c.emoji : "📦",
+      image: typeof c.image === "string" && c.image.trim() ? c.image.trim() : "",
     })
   }
   return out
