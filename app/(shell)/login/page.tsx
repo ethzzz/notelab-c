@@ -15,6 +15,9 @@ function safeNext(p: string | null): string | null {
   return p
 }
 
+/** 自动跳转时间戳（sessionStorage），用于识别 /x ↔ /login 死循环 */
+const JUMP_KEY = "login_autojump_at"
+
 function LoginInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -27,8 +30,26 @@ function LoginInner() {
 
   /** 登录/会话有效后回跳：next 参数（可能跨应用，走整页跳转）> 被拦截前记录的路由 > 首页 */
   function goNext() {
-    if (nextParam) { window.location.assign(nextParam); return }
-    router.replace(takeRedirectPath())
+    if (!nextParam) { router.replace(takeRedirectPath()); return }
+
+    // ⚠️ 防死循环：目标页（如 /ailab/）若反复把人踢回登录页，而这里又判定会话有效自动跳回，
+    //    就会形成 /ailab/ ↔ /login 无限跳转（2026-10-10 实测：B 端会话被门禁放行但 ai-lab
+    //    只认 C 端身份 → 业务 API 401 → 跳回来 → 又跳过去）。
+    //    根治在后端（/api/auth/verify 的 ailab 用途只认 C 端），这里兜底：10 秒内跳满 3 次就停手。
+    const now = Date.now()
+    let recent: number[] = []
+    try {
+      recent = JSON.parse(sessionStorage.getItem(JUMP_KEY) || "[]").filter((t: number) => now - t < 10_000)
+    } catch { recent = [] }
+    recent.push(now)
+    try { sessionStorage.setItem(JUMP_KEY, JSON.stringify(recent)) } catch {}
+
+    if (recent.length >= 3) {
+      setChecking(false)
+      setError("目标页面反复要求重新登录（10 秒内已跳转 3 次），已停止自动跳转。请确认该账号有访问权限。")
+      return
+    }
+    window.location.assign(nextParam)
   }
 
   // 进入登录页先校验登录态：会话仍有效则直接回原页面，不再展示登录表单
