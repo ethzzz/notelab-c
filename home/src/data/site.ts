@@ -38,7 +38,7 @@ export const CONTACTS = [
   },
   {
     kind: 'mail',
-    label: '邮箱（点击填写）',
+    label: 'ethz0607@gmail.com',
     href: 'mailto:ethz0607@gmail.com',
     external: false,
     hint: '发送邮件到 ethz0607@gmail.com',
