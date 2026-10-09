@@ -1,24 +1,24 @@
 "use client";
 
 /**
- * 知识摘录盒（/utils/excerpts）
+ * 知识摘录盒（/tools/excerpts，主页「工具」tab 内嵌）
  *
  * 记忆本体：kind='excerpt'，带 tag + 本地全文检索 + Markdown/JSON 导出。
  * 运行期零大模型依赖 —— 摘录是你自己记的，将来 RAG 恢复可直接拿这份语料喂。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import MemoryShell, { loadKind } from "@/components/MemoryShell";
-import { upsert, remove, search, toMarkdown, toJSON, type MemoryItem } from "@/lib/memory";
+import MemoryNotes from "./MemoryNotes";
+import { listByKind, upsert, remove, search, toMarkdown, toJSON, type MemoryItem } from "@/lib/memory";
 
-export default function ExcerptsPage() {
+export default function ExcerptsTool() {
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [q, setQ] = useState("");
   const [openForm, setOpenForm] = useState(false);
   const [draft, setDraft] = useState({ id: "", title: "", body: "", tags: "", source: "" });
   const [tagFilter, setTagFilter] = useState("");
 
-  const reload = useCallback(() => setItems(loadKind("excerpt")), []);
+  const reload = useCallback(() => setItems(listByKind("excerpt")), []);
 
   useEffect(() => {
     reload();
@@ -79,11 +79,8 @@ export default function ExcerptsPage() {
   };
 
   return (
-    <MemoryShell
-      kind="excerpt"
-      title="📦 知识摘录盒"
-      subtitle="摘一段原文 → 打 tag → 本地全文检索 → 导出 Markdown / JSON"
-    >
+    <>
+      <MemoryNotes kind="excerpt" />
       {openForm && (
         <section className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5">
           <h2 className="mb-3 text-sm font-semibold text-zinc-700">{draft.id ? "编辑这条摘录" : "新增摘录"}</h2>
@@ -214,6 +211,6 @@ export default function ExcerptsPage() {
           )}
         </div>
       </section>
-    </MemoryShell>
+    </>
   );
 }

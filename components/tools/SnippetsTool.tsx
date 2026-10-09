@@ -1,18 +1,18 @@
 "use client";
 
 /**
- * 模板 / 片段库（/utils/snippets）
+ * 模板 / 片段库（/tools/snippets，主页「工具」tab 内嵌）
  *
  * 变量用 {{name}} 占位，界面自动抽出输入框批量插值，一键复制到剪贴板。
  * 运行期零大模型依赖：片段是预置种子 + 自己攒的，预置这批是我（大模型）在开发阶段直接产出的常量。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import MemoryShell, { loadKind } from "@/components/MemoryShell";
-import { upsert, remove, search, newId, type MemoryItem } from "@/lib/memory";
+import MemoryNotes from "./MemoryNotes";
+import { listByKind, upsert, remove, search, newId, type MemoryItem } from "@/lib/memory";
 import { extractVars, interpolate, SNIPPET_DEFAULTS } from "@/lib/seed/snippets";
 
-export default function SnippetsPage() {
+export default function SnippetsTool() {
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("");
@@ -22,7 +22,7 @@ export default function SnippetsPage() {
   /** itemId → { 变量名: 值 } */
   const [vars, setVars] = useState<Record<string, Record<string, string>>>({});
 
-  const reload = useCallback(() => setItems(loadKind("snippet")), []);
+  const reload = useCallback(() => setItems(listByKind("snippet")), []);
 
   useEffect(() => {
     reload();
@@ -110,11 +110,8 @@ export default function SnippetsPage() {
   };
 
   return (
-    <MemoryShell
-      kind="snippet"
-      title="🧩 模板 / 片段库"
-      subtitle="{{变量}} 自动抽成输入框 · 一键复制 · 本地全文搜索"
-    >
+    <>
+      <MemoryNotes kind="snippet" />
       {openForm && (
         <section className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5">
           <h2 className="mb-3 text-sm font-semibold text-zinc-700">{draft.id ? "编辑片段" : "新增片段"}</h2>
@@ -260,6 +257,6 @@ export default function SnippetsPage() {
           )}
         </div>
       </section>
-    </MemoryShell>
+    </>
   );
 }

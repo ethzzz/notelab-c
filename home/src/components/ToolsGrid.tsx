@@ -1,5 +1,6 @@
 "use client"
 import type { CSSProperties, ReactNode } from 'react';
+import Link from 'next/link';
 import {
   categoryName,
   isPlaceholder,
@@ -69,15 +70,15 @@ export function ToolsGrid({ cat }: { cat: ToolCategoryId }): ReactNode {
 
         const internal = t.href.startsWith('/');
         const toolId = t.href.replace(/^\//, '').replace(/\//g, '_') || t.name;
-        return (
-          <a
-            key={t.name}
-            className={styles.card}
-            href={t.href}
-            onClick={() => track("tool_open", { tool_id: toolId })}
-            style={{ '--tone': tone, animationDelay: `${i * 45}ms` } as CardStyle}
-            {...(internal ? {} : { target: '_blank', rel: 'noreferrer' })}
-          >
+
+        // 只有落在**本应用路由**里的才用 next/link 软导航（现在就是 /tools/<slug> 的内嵌工具：
+        // 点了要在主页内容区原地打开，整页刷新会把 HomeApp 状态冲掉、也失去"内容区切换"的体感）。
+        // 其余 /blog、/admin、/ailab/、/thunder/、/vs 都是 nginx 上别的应用，Next 里没有页面，
+        // 必须原生 <a> 整页跳，否则 Link 会当站内路由 → 404。
+        const appRoute = t.href === '/tools' || t.href.startsWith('/tools/');
+        const cardStyle = { '--tone': tone, animationDelay: `${i * 45}ms` } as CardStyle;
+        const inner = (
+          <>
             <span className={styles.cardHead}>
               <span className={styles.cardEmoji} aria-hidden="true">
                 {t.emoji}
@@ -92,6 +93,33 @@ export function ToolsGrid({ cat }: { cat: ToolCategoryId }): ReactNode {
               <span className={styles.catName}>{categoryName(t.cat)}</span>
               <code className={styles.href}>{t.href === PLACEHOLDER_HREF ? '' : t.href}</code>
             </span>
+          </>
+        );
+
+        if (appRoute) {
+          return (
+            <Link
+              key={t.name}
+              className={styles.card}
+              href={t.href}
+              onClick={() => track("tool_open", { tool_id: toolId })}
+              style={cardStyle}
+            >
+              {inner}
+            </Link>
+          );
+        }
+
+        return (
+          <a
+            key={t.name}
+            className={styles.card}
+            href={t.href}
+            onClick={() => track("tool_open", { tool_id: toolId })}
+            style={cardStyle}
+            {...(internal ? {} : { target: '_blank', rel: 'noreferrer' })}
+          >
+            {inner}
           </a>
         );
       })}

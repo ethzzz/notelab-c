@@ -1,7 +1,10 @@
 "use client"
-// 每日英语翻译练习（C 端 · 玩家中心「工具」类子模块）：每天 0 点后端激活一组中文句子，按 3 阶梯逐句提交英文译文 → 大模型判分。
+// 每日英语翻译练习（主页「工具」tab 下的一个工具，/tools/translate）：每天 0 点后端激活一组中文句子，
+// 按 3 阶梯逐句提交英文译文 → 大模型判分。
 // 取数/回填 GET /api/translate/today；提交 POST /api/translate/submit（同人同日同句覆盖，可反复重交）。
-// 登录墙由 ./layout.tsx 的 RequireAuth 负责，页面本体只管练习交互（风格照 app/trpg/play）。
+// 登录墙：原本由 app/(shell)/utils/translate/layout.tsx 的 <RequireAuth> 负责，2026-10-10 工具搬进
+// 主页内容区后 layout 不存在了，改由组件内的 useRequireAuth() 自己守卫（未登录 → /login，登录后回跳本页）。
+// 页面标题由主页内容区顶栏显示，所以这里不再渲染自己的 <h1>。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { apiJson, postJson } from "@/lib/api"
@@ -14,7 +17,7 @@ import {
 } from "@/lib/translate"
 import { BarChart3, Check, ChevronDown, ChevronUp, Flame, Loader2, RefreshCw, Send, Sparkles, X } from "lucide-react"
 
-export default function TranslatePage() {
+export default function TranslateTool() {
   const { state } = useRequireAuth()
   /** today = 今日练习；progress = 我的进度（习惯闭环） */
   const [tab, setTab] = useState<"today" | "progress">("today")
@@ -108,8 +111,9 @@ export default function TranslatePage() {
   const doneCount = sentences.filter((s) => results[s.id]).length
 
   if (state !== "ok") {
+    // 内嵌在主页内容区（不是整页），所以占位高度按内容区给，不用 100dvh 减去外壳高度那套算法
     return (
-      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center">
+      <div className="flex min-h-[40vh] items-center justify-center">
         <span className="inline-block h-8 w-8 animate-spin rounded-full border-[3px] border-indigo-500 border-t-transparent" />
       </div>
     )
@@ -117,12 +121,8 @@ export default function TranslatePage() {
 
   return (
     <div className="mx-auto max-w-3xl pb-6">
-      {/* ===== 头部：今日组标题 + 日期 + 进度 ===== */}
+      {/* ===== 头部：今日组标题 + 日期 + 进度（标题归主页顶栏，这里只留状态行） ===== */}
       <div className="mb-5 flex flex-col gap-2">
-        <h1 className="flex items-center gap-2.5 text-2xl font-black text-zinc-800">
-          🌐 每日英语翻译练习
-        </h1>
-
         {/* ===== Tab 切换 ===== */}
         <div className="mt-1 flex gap-1 rounded-2xl border border-black/5 bg-white/60 p-1 backdrop-blur-sm">
           {([

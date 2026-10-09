@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * 速查卡 · 间隔重复（/utils/flashcards）
+ * 速查卡 · 间隔重复（/tools/flashcards，主页「工具」tab 内嵌）
  *
  * 运行期零大模型依赖：卡片来自统一记忆层 kind='flashcard'（预置种子 + 用户自己录入），
  * 排期用纯函数 SM-2（lib/sm2.ts），全部本地计算。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import MemoryShell, { loadKind } from "@/components/MemoryShell";
-import { KIND_LABEL, upsert, remove, search, type MemoryItem } from "@/lib/memory";
+import MemoryNotes from "./MemoryNotes";
+import { KIND_LABEL, listByKind, upsert, remove, search, type MemoryItem } from "@/lib/memory";
 import { grade as sm2Grade, describeDue, strength, isDue, type Sm2State } from "@/lib/sm2";
 
 const GRADES = [
@@ -21,7 +21,7 @@ const GRADES = [
   { g: 0, label: "重启重来" },
 ];
 
-export default function FlashcardsPage() {
+export default function FlashcardsTool() {
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<MemoryItem | null>(null);
@@ -30,12 +30,12 @@ export default function FlashcardsPage() {
   const [back, setBack] = useState(true);
   const [lastResult, setLastResult] = useState<string>("");
 
-  const reload = useCallback(() => setItems(loadKind("flashcard")), []);
+  const reload = useCallback(() => setItems(listByKind("flashcard")), []);
 
   useEffect(() => {
     reload();
     // 进入页面先把到期队列排出来
-    setQueue(pickDue(loadKind("flashcard")));
+    setQueue(pickDue(listByKind("flashcard")));
     setBack(true);
   }, [reload]);
 
@@ -68,17 +68,17 @@ export default function FlashcardsPage() {
         .split(/[\s,，]+/)
         .map((t) => t.trim())
         .filter(Boolean),
-      extra: draft.id ? loadKind("flashcard").find((i) => i.id === draft.id)?.extra : undefined,
+      extra: draft.id ? listByKind("flashcard").find((i) => i.id === draft.id)?.extra : undefined,
     });
     setBack(true);
     reload();
-    setQueue(pickDue(loadKind("flashcard")));
+    setQueue(pickDue(listByKind("flashcard")));
   };
 
   const del = (id: string) => {
     remove(id);
     reload();
-    setQueue(pickDue(loadKind("flashcard")));
+    setQueue(pickDue(listByKind("flashcard")));
   };
 
   /* ------------------------- 答题 ------------------------- */
@@ -132,11 +132,8 @@ export default function FlashcardsPage() {
   });
 
   return (
-    <MemoryShell
-      kind="flashcard"
-      title="🃏 速查卡 · 间隔重复"
-      subtitle="SM-2 记忆曲线本地排期 · 键盘 1–6 评分 · 空格翻面"
-    >
+    <>
+      <MemoryNotes kind="flashcard" />
       {/* ---------- 答题区 ---------- */}
       {total > 0 && (
         <section className="mb-6 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
@@ -284,7 +281,7 @@ export default function FlashcardsPage() {
           </ul>
         )}
       </section>
-    </MemoryShell>
+    </>
   );
 }
 

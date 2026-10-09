@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 习惯打卡 · 连续天数（/utils/habits）
+ * 习惯打卡 · 连续天数（/tools/habits，主页「工具」tab 内嵌）
  *
  * 习惯定义走统一记忆层 kind='habit'（复用 CRUD / 导出 / 云同步）；
  * 每日打卡日志单独存 notelab.habits.log.v1 —— 塞进 MemoryItem.body 会污染列表渲染。
@@ -9,8 +9,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import MemoryShell, { loadKind } from "@/components/MemoryShell";
-import { upsert, remove, type MemoryItem } from "@/lib/memory";
+import MemoryNotes from "./MemoryNotes";
+import { listByKind, upsert, remove, type MemoryItem } from "@/lib/memory";
 
 const LOG_KEY = "notelab.habits.log.v1";
 
@@ -54,7 +54,7 @@ export default function HabitsPage() {
   const [flash, setFlash] = useState("");
 
   const reload = useCallback(() => {
-    setHabits(loadKind("habit"));
+    setHabits(listByKind("habit"));
     setLog(readLog());
   }, []);
 
@@ -157,11 +157,8 @@ export default function HabitsPage() {
   };
 
   return (
-    <MemoryShell
-      kind="habit"
-      title="✅ 习惯打卡"
-      subtitle="每日打卡 · 连续天数 · 12 周热力图 · 全本地存储"
-    >
+    <>
+      <MemoryNotes kind="habit" />
       {openForm && (
         <section className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5">
           <h2 className="mb-3 text-sm font-semibold text-zinc-700">{draft.id ? "编辑习惯" : "新增习惯"}</h2>
@@ -307,6 +304,6 @@ export default function HabitsPage() {
           </div>
         </section>
       )}
-    </MemoryShell>
+    </>
   );
 }
